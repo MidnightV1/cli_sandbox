@@ -1,0 +1,185 @@
+# 已知配方库
+# 核心机制：配方匹配的是属性（properties），不是具体物品
+# 这意味着任何满足属性要求的材料都可以用于该配方
+
+recipes:
+  # ═══ 基础工具 ═══
+  cutting_tool:
+    name: 切割工具
+    description: 通过敲击硬质脆性材料获得锋利边缘
+    difficulty: 1
+    tech_points: 1
+    slots:
+      blade:
+        requires: [坚硬, 脆性]
+        description: 刃部材料
+      striker:
+        requires: [坚硬]
+        description: 用于敲击出刃口的硬物
+    method: "用{striker}反复敲击{blade}的边缘，利用脆性劈裂出锋利的刃口"
+    result:
+      name_template: "{blade}刀"
+      properties: [锋利, 小巧]
+      durability: 10
+      actions: [切割, 刮削, 雕刻]
+
+  rope:
+    name: 绳索
+    description: 将柔韧材料搓捻编织成更强韧的绳索
+    difficulty: 1
+    tech_points: 1
+    slots:
+      fiber_1:
+        requires: [柔韧, 坚韧]
+        description: 主纤维材料
+      fiber_2:
+        requires: [柔韧]
+        description: 辅助纤维
+    method: "将{fiber_1}和{fiber_2}反向搓捻，再互相缠绕编织成绳"
+    result:
+      name_template: 编织绳
+      properties: [坚韧, 细长, 柔韧]
+      durability: 15
+      actions: [捆绑, 悬挂, 牵引]
+
+  torch:
+    name: 火把
+    description: 用可燃材料制作的照明工具
+    difficulty: 1
+    tech_points: 1
+    slots:
+      handle:
+        requires: [笔直]
+        description: 手柄
+      fuel:
+        requires: [可燃, 柔软]
+        description: 燃料（缠绕在顶端）
+      igniter:
+        requires: [易燃]
+        description: 引燃材料
+    method: "将{fuel}紧紧缠绕在{handle}顶端，用{igniter}的火花点燃"
+    result:
+      name_template: 火把
+      properties: [发光, 高温]
+      durability: 8
+      actions: [照明, 点燃, 驱赶]
+
+  # ═══ 中级工具 ═══
+  spear:
+    name: 长矛
+    description: 在长杆前端绑上锋利尖头
+    difficulty: 2
+    tech_points: 3
+    slots:
+      shaft:
+        requires: [笔直, 坚硬]
+        description: 矛杆
+      tip:
+        requires: [锋利]
+        description: 矛尖
+      binding:
+        requires: [柔韧, 坚韧]
+        description: 绑扎材料
+    method: "将{tip}抵在{shaft}前端，用{binding}紧紧缠绕固定，确保不会松脱"
+    result:
+      name_template: "{tip}矛"
+      properties: [锋利, 细长]
+      durability: 12
+      actions: [刺击, 投掷, 探测]
+
+  axe:
+    name: 斧头
+    description: 在木柄上固定重型刃部
+    difficulty: 2
+    tech_points: 3
+    slots:
+      head:
+        requires: [坚硬, 重]
+        description: 斧头
+      handle:
+        requires: [笔直]
+        description: 手柄
+      binding:
+        requires: [柔韧, 坚韧]
+        description: 绑扎材料
+    method: "在{handle}顶端劈出凹槽，将{head}嵌入，用{binding}反复缠绕加固"
+    result:
+      name_template: 石斧
+      properties: [坚硬, 锋利]
+      durability: 15
+      actions: [砍伐, 劈砍, 挖掘]
+
+  water_filter:
+    name: 简易滤水器
+    description: 利用层状材料过滤水中杂质
+    difficulty: 2
+    tech_points: 3
+    slots:
+      container:
+        requires: [可塑]
+        description: 容器（塑形后使用）
+      filter_layer:
+        requires: [柔软]
+        description: 过滤层
+      gravel:
+        requires: [粗糙]
+        description: 砂砾层
+    method: "将{container}塑成漏斗形，底部放{filter_layer}，上层填{gravel}，水从顶部倒入"
+    result:
+      name_template: 简易滤水器
+      properties: [容器]
+      durability: 5
+      actions: [净水]
+
+  # ═══ 高级建造 ═══
+  shelter:
+    name: 简易庇护所
+    description: 搭建基本的遮风挡雨设施
+    difficulty: 3
+    tech_points: 5
+    slots:
+      pole_1:
+        requires: [笔直, 坚硬]
+        description: 主支撑柱
+      pole_2:
+        requires: [笔直]
+        description: 横梁
+      covering:
+        requires: [防水]
+        description: 覆盖材料
+      ties:
+        requires: [柔韧]
+        description: 固定绳索
+    method: "用{pole_1}和{pole_2}搭成A形框架，覆上{covering}，用{ties}捆扎固定各连接处"
+    result:
+      name_template: 简易庇护所
+      properties: [庇护, 防水]
+      durability: -1
+      actions: [休息, 储物]
+      placed: true
+
+  signal_device:
+    name: 信号装置
+    description: 利用导电材料和光源制作原始信号发射器
+    difficulty: 3
+    tech_points: 5
+    slots:
+      conductor:
+        requires: [导电, 细长]
+        description: 天线/导体
+      power_source:
+        requires: [导电, 坚硬]
+        description: 能量介质
+      emitter:
+        requires: [发光]
+        description: 信号发射介质
+      housing:
+        requires: [坚硬]
+        description: 外壳
+    method: "将{conductor}展开作为天线，连接{power_source}和{emitter}，用{housing}保护核心部件"
+    result:
+      name_template: 原始信号装置
+      properties: [导电, 发光]
+      durability: 3
+      actions: [发送信号]
+      goal_trigger: signal

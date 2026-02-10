@@ -1,0 +1,200 @@
+# 场景：异星坠落
+# 穿梭机坠毁在未知星球，生存并发出求救信号
+
+scenario:
+  name: 异星坠落
+  description: >
+    你是一名星际勘探员。执行例行勘测任务时，穿梭机遭遇未知能量干扰，
+    坠落在编号 Kepler-442b 的未探索星球上。通讯设备在坠落中严重损坏，
+    你必须利用这颗陌生星球上的一切资源活下来，并想办法发出求救信号。
+    大气可以呼吸，但生态系统完全陌生——不要假设任何东西和地球上一样。
+  checkpoint_interval: 100  # 每100天为一个阶段检查点
+
+  # 时间系统：日长（小时）在此范围内随机生成，对玩家隐藏
+  time_system:
+    day_length_min: 20
+    day_length_max: 30
+
+  # ═══ 初始状态 ═══
+  start:
+    location: crash_site
+    inventory:
+      - {id: emergency_ration, quantity: 2}
+      - {id: water_pack, quantity: 1}
+    status:
+      health: 8
+      hunger: 2
+      thirst: 2
+      warmth: 7
+      energy: 7
+    known_recipes:
+      - cutting_tool
+      - rope
+
+  # ═══ 任务目标 ═══
+  goals:
+    - id: survive
+      description: 在这颗星球上存活100天
+      type: survival
+    - id: signal
+      description: 制作信号装置并在信号塔处激活，发出求救信号
+      type: primary
+    - id: shelter
+      description: 建造一个庇护所来对抗恶劣天气
+      type: secondary
+
+  # ═══ 地图 ═══
+  locations:
+    crash_site:
+      name: 坠毁点
+      description: >
+        你的穿梭机残骸散落在一片开阔的岩石平原上。机体断成三截，
+        冒着刺鼻的黑烟。虽然大部分设备已经报废，但残骸中还能找到一些有用的材料。
+        地面是灰褐色的碎石，远处可以看到几个不同的方向似乎有不同的地貌。
+      resources:
+        - {item_id: titanium_scrap, quantity: 4}
+        - {item_id: polymer_sheet, quantity: 3}
+        - {item_id: wire, quantity: 5}
+      connections:
+        北: ridge
+        东: alien_forest
+        南: dry_riverbed
+      discovered: true
+      visited: true
+
+    ridge:
+      name: 山脊高地
+      description: >
+        一道横亘东西的山脊，站在上面视野开阔。
+        强劲的风不断吹过，带着一股硫磺味。脚下是深色的火山岩，
+        散落着各种火山碎屑。向西望去，崖壁上似乎有一个洞口。
+      resources:
+        - {item_id: fluorescent_rock, quantity: 3}
+        - {item_id: obsidian_shard, quantity: 4}
+        - {item_id: volcanic_rock, quantity: 3}
+      connections:
+        南: crash_site
+        西: cave_entrance
+        东北: signal_tower
+      hazards: [强风]
+      discovered: true
+      visibility: [cave_entrance, signal_tower]
+
+    alien_forest:
+      name: 异星森林
+      description: >
+        密集的菌类植物组成的"森林"。这里的"树"是巨大的真菌，
+        笔直的菌柄支撑着伞状的菌盖，散发出微弱的蓝白色荧光。
+        地面覆盖着一层柔软的苔藓，空气湿润而温暖。
+        藤蔓在树间蜿蜒交织，悬挂着发光的果实。
+      resources:
+        - {item_id: vine, quantity: 6, renewable: true, regen_ticks: 8}
+        - {item_id: fungal_wood, quantity: 5, renewable: true, regen_ticks: 10}
+        - {item_id: glow_fruit, quantity: 4, renewable: true, regen_ticks: 6}
+        - {item_id: dry_moss, quantity: 4}
+        - {item_id: resin_glob, quantity: 3}
+      connections:
+        西: crash_site
+        南: marshland
+      shelter: true
+
+    dry_riverbed:
+      name: 干涸河床
+      description: >
+        一条宽阔的干涸河道，河床上布满圆润的卵石和细沙。
+        在一些低洼处还残留着少量积水。河岸两侧长着稀疏的芦苇状植物。
+        黏土在日照下龟裂成块状，用手就能掰下来。
+      resources:
+        - {item_id: clay, quantity: 5}
+        - {item_id: sandstone, quantity: 4}
+        - {item_id: puddle_water, quantity: 3, renewable: true, regen_ticks: 12}
+        - {item_id: river_reed, quantity: 6, renewable: true, regen_ticks: 8}
+      connections:
+        北: crash_site
+        东: marshland
+
+    cave_entrance:
+      name: 洞穴入口
+      description: >
+        山脊西侧崖壁上的一个天然洞口，大约两人高。
+        从洞口向内望去一片漆黑，但能感觉到从内部涌出的暖风。
+        洞口周围的岩壁上长着少量发光菌类，勉强能看清脚下。
+      resources:
+        - {item_id: cave_fungus, quantity: 3, renewable: true, regen_ticks: 8}
+      connections:
+        东: ridge
+        深处: cave_interior
+      discovered: false
+      shelter: true
+
+    cave_interior:
+      name: 洞穴深处
+      description: >
+        穿过一段狭窄的通道后，空间豁然开朗。
+        洞顶悬挂着发出微光的晶体簇，将整个洞窟映照得如同星空。
+        温度比外面明显高了不少，地面平坦干燥。
+        墙壁上可以看到金属光泽的矿脉和白色的沉积物。
+      resources:
+        - {item_id: crystal, quantity: 4}
+        - {item_id: metal_ore, quantity: 3}
+        - {item_id: calcium_deposit, quantity: 3}
+      connections:
+        外面: cave_entrance
+      discovered: false
+      shelter: true
+
+    marshland:
+      name: 沼泽地
+      description: >
+        低洼的沼泽区域，空气闷热潮湿，弥漫着腐殖质的气味。
+        暗绿色的积水间散布着高大的沼泽植物，根系盘综错节。
+        脚下松软泥泞，需要小心行走。
+        远处似乎有些黄绿色的岩石露出水面。
+      resources:
+        - {item_id: marsh_fiber, quantity: 5, renewable: true, regen_ticks: 8}
+        - {item_id: phosphite_ore, quantity: 4}
+        - {item_id: bog_water, quantity: 99, renewable: true, regen_ticks: 1}
+        - {item_id: leech_vine, quantity: 3}
+      connections:
+        北: alien_forest
+        西: dry_riverbed
+      hazards: [泥沼, 有毒植物]
+
+    signal_tower:
+      name: 信号塔
+      description: >
+        一座明显是人工建造的高塔，但不是人类的技术风格。
+        塔身由某种未知合金构成，表面刻满了几何纹样。
+        塔顶有一个碗状凹陷，看起来像某种能量聚焦装置。
+        虽然已经废弃很久了，但结构完好。如果能提供合适的信号源，
+        也许可以借用它来放大求救信号。
+      resources: []
+      connections:
+        西南: ridge
+      discovered: false
+      hazards: [强风]
+
+  # ═══ 天气系统 ═══
+  weather_pool:
+    - type: 晴朗
+      weight: 4
+      effects: {}
+    - type: 大风
+      weight: 2
+      effects:
+        warmth_mod: -1
+        exposed_only: true
+    - type: 酸雨
+      weight: 1
+      effects:
+        warmth_mod: -2
+        health_mod: -1
+        exposed_only: true
+    - type: 浓雾
+      weight: 2
+      effects:
+        visibility_blocked: true
+    - type: 极寒
+      weight: 1
+      effects:
+        warmth_mod: -3

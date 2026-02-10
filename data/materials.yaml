@@ -1,0 +1,156 @@
+# 异星材料数据库
+# 物品基于属性系统：配方匹配属性而非具体物品名
+# 属性列表：坚硬 脆性 锋利 柔韧 坚韧 细长 轻便 重 可燃 防水 导电 导热
+#           可食用 可饮用 多汁 可塑 粗糙 透明 发光 笔直 耐用 柔软 易燃 小巧 高温
+
+materials:
+  # ═══ 坠毁飞船残骸 ═══
+  titanium_scrap:
+    name: 钛合金碎片
+    description: 从飞船残骸上撕裂下来的金属片，边缘参差不齐，质地极为坚硬
+    properties: [坚硬, 耐用, 导热, 锋利]
+
+  polymer_sheet:
+    name: 聚合物板
+    description: 飞船外壳的隔热层，可以弯折但不易撕裂，表面光滑防水
+    properties: [柔韧, 防水, 轻便]
+
+  wire:
+    name: 导线
+    description: 从飞船电路中拆出的铜芯线缆，外层绝缘皮已部分熔化
+    properties: [导电, 柔韧, 细长]
+
+  emergency_ration:
+    name: 应急口粮
+    description: 标准配发的压缩食物块，密封包装，保质期很长
+    properties: [可食用]
+    consumable:
+      type: food
+      food_value: 3
+
+  water_pack:
+    name: 饮用水包
+    description: 250ml密封饮用水
+    properties: [可饮用]
+    consumable:
+      type: water
+      water_value: 3
+
+  # ═══ 山脊高地 ═══
+  fluorescent_rock:
+    name: 荧岩
+    description: 淡蓝色的火山岩，内含未知矿物质，在黑暗中散发幽幽微光
+    properties: [坚硬, 脆性, 发光]
+
+  obsidian_shard:
+    name: 黑曜碎片
+    description: 天然的火山玻璃碎片，断裂面薄如纸刃，异常锋利
+    properties: [坚硬, 脆性, 锋利, 小巧]
+
+  volcanic_rock:
+    name: 火山岩
+    description: 灰黑色的致密火山岩块，沉重且坚硬，表面布满气孔
+    properties: [坚硬, 重, 粗糙]
+
+  # ═══ 异星森林 ═══
+  vine:
+    name: 蔓藤
+    description: 粗壮的螺旋状藤蔓，弹性极好，拉扯时会卷曲回缩
+    properties: [柔韧, 坚韧, 细长]
+
+  fungal_wood:
+    name: 菌木
+    description: 笔直的真菌类树干，外硬内轻，干燥后极易点燃
+    properties: [坚硬, 可燃, 笔直, 轻便]
+
+  glow_fruit:
+    name: 荧光果
+    description: 拳头大小的半透明果实，内部液体发出暖黄色光芒，气味清甜
+    properties: [可食用, 发光, 多汁]
+    consumable:
+      type: both
+      food_value: 2
+      water_value: 2
+
+  dry_moss:
+    name: 干苔
+    description: 干燥蓬松的苔藓团，质地如棉絮，一碰就碎成絮状
+    properties: [可燃, 柔软, 轻便]
+
+  resin_glob:
+    name: 树脂块
+    description: 从菌木表面刮下的琥珀色树脂，粘稠且易燃，燃烧时间很长
+    properties: [可燃, 可塑, 防水]
+
+  # ═══ 干涸河床 ═══
+  clay:
+    name: 黏土
+    description: 河床底部的细腻黏土，湿润时可随意塑形，干燥后变硬
+    properties: [可塑, 重]
+
+  sandstone:
+    name: 砂岩
+    description: 粗糙的沉积岩块，表面像砂纸，用来研磨效果极佳
+    properties: [坚硬, 粗糙, 重]
+
+  puddle_water:
+    name: 积水
+    description: 残留在岩石凹陷处的雨水，看起来还算清澈
+    properties: [可饮用]
+    consumable:
+      type: water
+      water_value: 2
+
+  river_reed:
+    name: 河芦
+    description: 干涸河床边生长的中空芦苇，又直又轻
+    properties: [笔直, 轻便, 细长]
+
+  # ═══ 洞穴 ═══
+  crystal:
+    name: 硅晶
+    description: 半透明的晶体柱，敲击时发出清脆的嗡鸣声，断面锋利
+    properties: [坚硬, 脆性, 透明, 导热, 锋利]
+
+  cave_fungus:
+    name: 洞穴菌
+    description: 生长在洞壁上的发光菌类，味道说不上好但能充饥
+    properties: [可食用]
+    consumable:
+      type: food
+      food_value: 1
+
+  metal_ore:
+    name: 金属矿
+    description: 洞穴深处的金属矿石，可以看到金属光泽的纹理
+    properties: [坚硬, 重, 导电, 耐用]
+
+  calcium_deposit:
+    name: 钙华沉积
+    description: 洞壁上的白色沉积物，质脆，研碎后像粉末
+    properties: [脆性, 粉末状]
+
+  # ═══ 沼泽地 ═══
+  marsh_fiber:
+    name: 沼泽纤维
+    description: 从沼泽植物中剥离的长纤维，浸泡后变得极为坚韧且带有防水性
+    properties: [柔韧, 坚韧, 防水]
+
+  phosphite_ore:
+    name: 磷矿石
+    description: 黄绿色的矿石，摩擦或敲击时会迸出火花，碾碎后气味刺鼻
+    properties: [可燃, 脆性, 发光, 易燃]
+
+  bog_water:
+    name: 沼泽水
+    description: 浑浊的沼泽水，有股腐败气味，直接喝恐怕会生病
+    properties: [可饮用]
+    consumable:
+      type: water
+      water_value: 1
+      side_effect: health_minus_1
+
+  leech_vine:
+    name: 吸血藤
+    description: 表面布满倒刺的暗红色藤蔓，碰到会刺痛但极为结实
+    properties: [柔韧, 坚韧, 细长, 锋利]
