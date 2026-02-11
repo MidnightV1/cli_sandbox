@@ -17,10 +17,14 @@ PRICING = {
     'claude-35-mid': {'input': 3, 'output': 15},
     'claude-4-mid': {'input': 3, 'output': 15},
     'claude-37': {'input': 3, 'output': 15},
+    'claude-45-mid': {'input': 3, 'output': 15},
+    'claude-46-big': {'input': 5, 'output': 25},
     'claude-35-small': {'input': 0.8, 'output': 4},
     # OpenAI
     'gpt-4.1': {'input': 2, 'output': 8},
     'gpt-4.1-mini': {'input': 0.4, 'output': 1.6},
+    'gpt-5.2': {'input': 1.75, 'output': 14},
+    'gpt-5.2-chat': {'input': 1.75, 'output': 14},
     # Gemini
     '2.5-Flash': {'input': 0.3, 'output': 2.5},
     '2.5-Pro': {'input': 1.25, 'output': 10},
@@ -85,10 +89,14 @@ class LLMClient:
             'claude-37': 'claude-3-7-sonnet-20250219',
             'claude-4-mid': 'claude-4-sonnet-20250514',
             'claude-4-big': 'claude-opus-4-20250514',
+            'claude-45-mid': 'claude-sonnet-4-5-20250929',
+            'claude-46-big': 'claude-opus-4-6',
         },
         'openai': {
             'gpt-4.1': 'gpt-4.1-2025-04-14',
             'gpt-4.1-mini': 'gpt-4.1-mini-2025-04-14',
+            'gpt-5.2': 'gpt-5.2',
+            'gpt-5.2-chat': 'gpt-5.2-chat-latest',
         },
         'gemini': {
             '2.5-Flash': 'gemini-2.5-flash',
@@ -117,9 +125,9 @@ class LLMClient:
         thinking: str级别(high/medium/low) 或 True(=high) 或 None/False(关闭)
         """
         if provider == 'anthropic':
-            result = self._call_anthropic(system_prompt, user_prompt, model, temperature)
+            result = self._call_anthropic(system_prompt, user_prompt, model, temperature, thinking)
         elif provider == 'openai':
-            result = self._call_openai(system_prompt, user_prompt, model, temperature)
+            result = self._call_openai(system_prompt, user_prompt, model, temperature, thinking)
         elif provider == 'gemini':
             result = self._call_gemini(system_prompt, user_prompt, model, temperature, thinking)
         elif provider == 'deepseek':
@@ -137,7 +145,7 @@ class LLMClient:
         )
         return result
 
-    def _call_anthropic(self, system_prompt, user_prompt, model_name, temperature):
+    def _call_anthropic(self, system_prompt, user_prompt, model_name, temperature, thinking=False):
         import anthropic
         if 'anthropic' not in self._clients:
             api_key = os.getenv('ANTHROPIC_API_KEY')
@@ -148,22 +156,37 @@ class LLMClient:
         client = self._clients['anthropic']
         model_id = self.PROVIDER_MODELS['anthropic'].get(model_name, model_name)
 
-        message = client.messages.create(
-            model=model_id,
-            max_tokens=4096,
-            temperature=temperature,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
+        kwargs = {
+            'model': model_id,
+            'max_tokens': 8192,
+            'system': system_prompt,
+            'messages': [{"role": "user", "content": user_prompt}],
+        }
+
+        if thinking:
+            # extended thinking模式：temperature必须为1，budget_tokens < max_tokens
+            kwargs['max_tokens'] = 16000
+            kwargs['temperature'] = 1
+            kwargs['thinking'] = {"type": "enabled", "budget_tokens": 8000}
+        else:
+            kwargs['temperature'] = temperature
+
+        message = client.messages.create(**kwargs)
+
+        # extended thinking时content可能包含thinking block，取最后的text block
+        content = ''
+        for block in message.content:
+            if block.type == 'text':
+                content = block.text
 
         return {
             'model': model_name,
-            'content': message.content[0].text,
+            'content': content,
             'input_tokens': message.usage.input_tokens,
             'output_tokens': message.usage.output_tokens,
         }
 
-    def _call_openai(self, system_prompt, user_prompt, model_name, temperature):
+    def _call_openai(self, system_prompt, user_prompt, model_name, temperature, thinking=False):
         from openai import OpenAI
         if 'openai' not in self._clients:
             api_key = os.getenv('OPENAI_API_KEY')
@@ -174,15 +197,25 @@ class LLMClient:
         client = self._clients['openai']
         model_id = self.PROVIDER_MODELS['openai'].get(model_name, model_name)
 
-        response = client.chat.completions.create(
-            model=model_id,
-            messages=[
+        kwargs = {
+            'model': model_id,
+            'messages': [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            temperature=temperature,
-            max_tokens=4096,
-        )
+        }
+
+        if model_name.startswith('gpt-5'):
+            # GPT-5.x 系列：必须用 max_completion_tokens，temperature 只支持默认值1
+            kwargs['max_completion_tokens'] = 8192
+            if thinking:
+                effort = thinking if isinstance(thinking, str) else 'high'
+                kwargs['reasoning_effort'] = effort
+        else:
+            kwargs['temperature'] = temperature
+            kwargs['max_tokens'] = 4096
+
+        response = client.chat.completions.create(**kwargs)
 
         return {
             'model': model_name,

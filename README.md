@@ -55,7 +55,8 @@ python main.py --no-llm
 
 # AI Agent 自动游戏
 python main.py --agent gemini/3-Pro --thinking high --seed 42
-python main.py --agent deepseek/v3 --thinking --seed 42
+python main.py --agent openai/gpt-5.2 --thinking --seed 42
+python main.py --agent anthropic/claude-46-big --thinking --seed 42
 ```
 
 ### 支持的模型
@@ -64,8 +65,8 @@ python main.py --agent deepseek/v3 --thinking --seed 42
 |----------|------|------|
 | Gemini | 3-Pro, 3-Flash, 2.5-Pro, 2.5-Flash | `--agent gemini/3-Pro` |
 | DeepSeek | v3 (V3.2) | `--agent deepseek/v3` |
-| OpenAI | gpt-4.1, gpt-4.1-mini | `--agent openai/gpt-4.1` |
-| Anthropic | claude-37, claude-4-mid | `--agent anthropic/claude-37` |
+| OpenAI | gpt-5.2, gpt-5.2-chat, gpt-4.1, gpt-4.1-mini | `--agent openai/gpt-5.2` |
+| Anthropic | claude-46-big, claude-45-mid, claude-4-mid, claude-37 | `--agent anthropic/claude-46-big` |
 | Moonshot | k2.5 (Kimi K2.5) | `--agent moonshot/k2.5` |
 
 ## Agent 评测结果
@@ -82,14 +83,24 @@ python main.py --agent deepseek/v3 --thinking --seed 42
 | DeepSeek V3.2 | on | 2天/**46.0h** | 40 | **98%** | 3/8 | 原始(1pt) | 0 | ¥0.41 |
 | Kimi K2.5 | on | 1天/23.5h | 19 | 88% | 3/8 | 原始(1pt) | 0 | ¥0.80 |
 | Kimi K2.5 | off | 2天/34.0h | 32 | 91% | 3/8 | 原始(1pt) | 0 | ¥0.28 |
+| GPT-5.2 | on | 2天/45.0h | 43 | 96% | 3/8 | 石器(3pt) | 1 | ¥2.33 |
+| GPT-5.2 Chat | off | 2天/**55.5h** | 48 | 89% | 4/8 | 原始(1pt) | 0 | ¥1.97 |
+| Claude Opus 4.6 | on | 2天/~45h | ~45 | ~96% | 3/8 | 石器(5pt) | **2** | ~¥15* |
+| Claude Opus 4.6 | off | 2天/44.5h | 41 | 86% | 3/8 | 石器(3pt) | 1 | ¥4.74 |
+| Claude Sonnet 4.5 | on | 2天/42.0h | 37 | 93% | 3/8 | 石器(3pt) | 1 | ¥7.74 |
+| Claude Sonnet 4.5 | off | 2天/42.0h | 38 | 87% | 4/8 | 原始(1pt) | 0 | ¥2.49 |
+
+*Opus 4.6 thinking 因 recorder bug 崩溃未输出完整报告，数据为日志估算。
 
 ### 关键发现
 
 - **所有 agent 均死于脱水**，饮水管理是当前场景最大挑战
-- **Gemini 3-Pro + high thinking 综合最强**：唯一达到石器科技 + 成功发明新物品（钛合金匕首）
-- **DeepSeek V3.2 性价比极高**：thinking 模式 ¥0.41 获得 98% 有效率和最长存活时间（46h）
-- **thinking 模式普遍提升有效率**：减少格式错误和无效指令，策略更稳健——但 Kimi K2.5 是例外，thinking 模式反而存活更短（23.5h vs 34h），推理耗时长但决策未改善
-- **成本差异巨大**：最贵（3-Pro low ¥1.82）是最便宜（DS v3 ¥0.21）的 8.7 倍
+- **GPT-5.2 Chat 存活最长**（55.5h），是唯一突破 50h 的模型，靠高动作效率（48 次）和 4/8 探索覆盖延长了生存
+- **Claude Opus 4.6 thinking 综合最强**：唯一达到 5pt 科技 + 2 个发明（含简易滤水器），展现出最强的创造性问题解决能力
+- **thinking 模式的真正价值在于科技和发明**：开启 thinking 后，Opus/Sonnet/GPT-5.2 均达到石器科技并产生发明，关闭时只有 Opus 做到——thinking 提升的不只是有效率，而是高阶推理（组合材料、发明新物品）
+- **GPT-5.2 性价比最优**：¥2.33 获得 96% 有效率 + 石器科技 + 发明，比 Opus 4.6 便宜一个数量级
+- **Claude 模型成本显著偏高**：Opus thinking ~¥15、Sonnet thinking ¥7.74，主要因为 thinking token 被计入 output 费用
+- **成本差异极大**：最贵（Opus thinking ~¥15）是最便宜（DS v3 ¥0.21）的 70+ 倍
 
 ## 开发
 
