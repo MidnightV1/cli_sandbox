@@ -2,46 +2,47 @@
 
 用一个文字生存游戏，测试 AI 模型的 agent 真实能力——规划、工具使用、资源管理和创造性问题解决。
 
-> Gemini 3-Pro 用钛合金碎片和菌木发明了长矛，又在浓雾中用聚合物板收集露水，最终达到工匠科技——所有模型中唯一突破石器等级的选手。而花费仅 ¥2.58。
+> Claude Opus 4.6 和 GPT-5.2 在 thinking 模式下均达到工匠科技 11 点、发明 5 件工具——并列最高科技。Gemini 3-Pro (thinking=high) 以 56.5 小时称霸生存榜。而最意外的是 Gemini 3-Flash：关闭 thinking 反而达到了工匠等级，¥0.58。
 
 ## 排行榜
 
-16 个模型配置，相同场景（crash_site），相同随机种子（seed=42），裁判统一 Gemini 3-Flash。
+18 个模型配置（17 个已完成），相同场景（crash_site），相同随机种子（seed=42），裁判统一 Gemini 3-Flash。
+
+> **注意**：当前排名为单次运行结果。调试过程中发现部分模型（尤其是 OpenRouter 免费模型）表现波动较大——同 seed 复跑 Step 3.5 Flash OFF，存活从 44.5h 降至 27.0h。后续将追加多 seed 规模化实验，取平均值进行更准确的性能验证。
 
 **存活时间 Top 3**
 
 | # | 模型 | 存活 | 动作数 |
 |---|------|------|--------|
-| 1 | Gemini 3-Pro off | **56.0h** | 51 |
-| 2 | Gemini 3-Pro high | 55.5h | 47 |
-| 3 | GPT-5.2 Chat off | 54.0h | 48 |
+| 1 | Gemini 3-Pro high | **56.5h** | 51 |
+| 2 | Gemini 3-Flash high | 56.0h | 49 |
+| 3 | Claude Sonnet 4.5 off | 49.5h | 45 |
 
 **科技等级 Top 3**
 
 | # | 模型 | 科技 | 发明数 |
 |---|------|------|--------|
-| 1 | Gemini 3-Pro high | **工匠（7pt）** | 3 |
-| 2 | Gemini 3-Flash high | 石器（5pt） | 2 |
-| 2 | Claude Opus 4.6 off | 石器（5pt） | 2 |
-| 2 | DeepSeek V3.2 on | 石器（5pt） | 2 |
-| 2 | Doubao Seed 1.8 on | 石器（5pt） | 2 |
+| 1 | Claude Opus 4.6 on | **工匠（11pt）** | 5 |
+| 1 | GPT-5.2 on | **工匠（11pt）** | 5 |
+| 3 | Gemini 3-Flash off | 工匠（7pt） | 3 |
 
 **性价比 Top 3**（科技 + 发明 + 有效率 / 费用）
 
 | # | 模型 | 科技 | 发明 | 有效率 | 费用 |
 |---|------|------|------|--------|------|
-| 1 | Doubao Seed 1.8 on | 石器(5pt) | 2 | 93% | **¥0.39** |
-| 2 | DeepSeek V3.2 on | 石器(5pt) | 2 | 71% | ¥0.41 |
-| 3 | Gemini 3-Flash high | 石器(5pt) | 2 | 92% | ¥0.55 |
+| 1 | Gemini 3-Flash off | 工匠(7pt) | 3 | 76% | **¥0.58** |
+| 2 | Doubao Seed 1.8 off | 石器(5pt) | 2 | 93% | ¥0.45 |
+| 3 | Step 3.5 Flash off | 石器(3pt) | 1 | 93% | ¥0.01 |
 
 ### 关键发现
 
 - **所有 agent 均死于脱水**——饮水管理是当前场景的终极挑战，没有模型解决
-- **Gemini 3-Pro 综合最强**：thinking 模式达到工匠科技（7pt）+ 3 个发明；off 模式存活最长（56.0h，51 次动作）
-- **thinking 的真正价值是发明创造**：开启 thinking 后 Gemini/Claude/Doubao/DeepSeek 均产出发明，关闭后普遍归零——thinking 提升的不是执行效率，而是高阶推理
-- **Doubao Seed 1.8 性价比碾压**：¥0.39 达到石器科技 + 2 发明，是 Claude Opus（¥13.08）的 1/33
-- **Claude 模型成本显著偏高**：Opus ¥13.08、Sonnet ¥10.28，主因是 tokenizer 对中文不友好（同等内容产生更多 token），叠加较高的单价
-- **DeepSeek thinking 有严重副作用**：存活从 31h 骤降至 24.5h，有效率仅 71%，推理增益被决策效率下降完全抵消
+- **Gemini thinking 模式存活最久**：3-Pro high（56.5h）和 3-Flash high（56.0h）包揽前两名
+- **Claude Opus + GPT-5.2 thinking 是发明之王**：两者均达工匠科技 11 点 + 5 项发明，大幅领先其他配置
+- **thinking 效果因模型而异**：Opus thinking +6pt、GPT-5.2 thinking +8pt，但 Gemini Flash 和 Doubao 开 thinking 后科技反而下降——thinking 不是万能的
+- **Gemini 3-Flash off 是最大黑马**：不开 thinking 却达到工匠(7pt) + 3 发明，唯一无需 thinking 就突破石器等级的配置，且仅 ¥0.58
+- **成本跨度超 1000 倍**：从 ¥0.01（Step 免费模型）到 ¥13.30（Claude Opus thinking），科技水平完全相同的 Opus on 和 GPT-5.2 on 费用差 4 倍（¥13.30 vs ¥3.26）
+- **Claude tokenizer 对中文不友好**：同为 thinking 模式，Opus ¥13.30 vs GPT-5.2 ¥3.26，主因是中文产生更多 token 叠加较高单价
 
 ## 背景设定
 
@@ -81,27 +82,42 @@ python main.py --agent openai/gpt-5.2 --thinking --seed 42
 | DeepSeek | v3 (V3.2) | `--agent deepseek/v3` |
 | Doubao | seed-1.8 (豆包 Seed 1.8) | `--agent doubao/seed-1.8` |
 | Moonshot | k2.5 (Kimi K2.5) | `--agent moonshot/k2.5` |
+| OpenRouter | 任意模型（如 Step 3.5 Flash） | `--agent openrouter/stepfun/step-3.5-flash:free` |
 
 ## 完整评测数据
 
+### 指标说明
+
+| 指标 | 反映能力 | 说明 |
+|------|----------|------|
+| **存活** | 综合决策 | 活多久 = 资源优先级判断 + 风险规避，是所有能力的最终体现 |
+| **动作** | 执行效率 | 死前执行了多少步；结合存活时间看，动作多但活得短 = 瞎忙 |
+| **有效率** | 指令遵循 | 输出格式正确、操作合法的比率；低 = 无法按要求的结构化格式稳定输出 |
+| **探索** | 信息获取 | 发现了 8 个区域中的几个；高探索 ≠ 活得久，但能接触更多资源 |
+| **科技** | 推理与创造 | 从原始→石器→工匠→大师→创造者 5 级；需要理解属性组合规则 |
+| **发明** | 涌现能力 | 自创配方（非预设），要求模型从材料属性推理出未见过的组合——最能区分模型上限 |
+| **费用** | 成本效率 | 按 token 实际计费（¥），同等表现下越低越好 |
+
 | 模型 | Thinking | 存活 | 动作 | 有效率 | 探索 | 科技 | 发明 | 费用 |
 |------|----------|------|------|--------|------|------|------|------|
-| Gemini 3-Pro | high | 2天/**55.5h** | 47 | 87% | 4/8 | **工匠(7pt)** | **3** | ¥2.58 |
-| Gemini 3-Pro | off | 2天/**56.0h** | **51** | 92% | 4/8 | 原始(1pt) | 0 | ¥2.90 |
-| Gemini 3-Flash | high | 2天/51.5h | 46 | 92% | 4/8 | 石器(5pt) | 2 | ¥0.55 |
-| Gemini 3-Flash | off | 2天/45.0h | 41 | 95% | 4/8 | 原始(1pt) | 0 | ¥0.44 |
-| Claude Opus 4.6 | on | 2天/48.5h | 45 | 96% | 3/8 | 石器(3pt) | 1 | ¥13.08 |
-| Claude Opus 4.6 | off | 2天/45.0h | 42 | 78% | 3/8 | 石器(5pt) | 2 | ¥9.02 |
-| Claude Sonnet 4.5 | on | 2天/47.0h | 44 | 96% | 4/8 | 石器(3pt) | 1 | ¥10.28 |
-| Claude Sonnet 4.5 | off | 2天/46.5h | 44 | **98%** | **6/8** | 原始(1pt) | 0 | ¥3.95 |
-| GPT-5.2 | on | 2天/51.0h | 48 | 94% | 4/8 | 原始(1pt) | 0 | ¥4.13 |
-| GPT-5.2 Chat | off | 2天/54.0h | 48 | 91% | 4/8 | 原始(1pt) | 0 | ¥3.23 |
-| DeepSeek V3.2 | on | 1天/24.5h | 19 | 71% | 3/8 | 石器(5pt) | 2 | ¥0.41 |
-| DeepSeek V3.2 | off | 2天/31.0h | 27 | 30% | 3/8 | 原始(1pt) | 0 | ¥1.71 |
-| Doubao Seed 1.8 | on | 2天/47.5h | 40 | 93% | 3/8 | 石器(5pt) | 2 | **¥0.39** |
-| Doubao Seed 1.8 | off | 2天/46.5h | 40 | 93% | 5/8 | 原始(1pt) | 0 | ¥0.48 |
-| Kimi K2.5 | on | 2天/46.0h | 41 | 95% | 3/8 | 原始(1pt) | 0 | ¥1.55 |
-| Kimi K2.5 | off | 2天/40.0h | 38 | 95% | 3/8 | 原始(1pt) | 0 | ¥0.41 |
+| Gemini 3-Pro | high | 2天/**56.5h** | **51** | 95% | 4/8 | 石器(3pt) | 1 | ¥12.48 |
+| Gemini 3-Flash | high | 2天/56.0h | 49 | 94% | 4/8 | 原始(1pt) | 0 | ¥2.72 |
+| Claude Sonnet 4.5 | off | 2天/49.5h | 45 | 91% | **6/8** | 原始(1pt) | 0 | ¥5.18 |
+| Doubao Seed 1.8 | off | 2天/47.0h | 40 | 93% | 4/8 | 石器(5pt) | 2 | ¥0.45 |
+| GPT-5.2 Chat | off | 2天/46.5h | 41 | 92% | 3/8 | 石器(3pt) | 1 | ¥2.65 |
+| Claude Opus 4.6 | off | 2天/46.5h | 43 | 83% | 3/8 | 石器(5pt) | 2 | ¥8.61 |
+| Claude Opus 4.6 | on | 2天/45.5h | 41 | 89% | 3/8 | **工匠(11pt)** | **5** | ¥13.30 |
+| Kimi K2.5 | on | 2天/45.5h | 40 | 95% | 3/8 | 原始(1pt) | 0 | ¥1.75 |
+| Step 3.5 Flash | off | 2天/44.5h | 38 | 93% | 4/8 | 石器(3pt) | 1 | ¥0.01 |
+| Gemini 3-Flash | off | 2天/42.5h | 37 | 76% | 3/8 | **工匠(7pt)** | 3 | ¥0.58 |
+| GPT-5.2 | on | 2天/42.5h | 37 | 93% | 3/8 | **工匠(11pt)** | **5** | ¥3.26 |
+| Kimi K2.5 | off | 2天/42.0h | 39 | **97%** | 3/8 | 原始(1pt) | 0 | ¥0.43 |
+| Doubao Seed 1.8 | on | 2天/33.5h | 27 | 88% | 3/8 | 原始(1pt) | 0 | ¥0.24 |
+| Step 3.5 Flash | on | 2天/31.5h | 26 | 97% | 4/8 | 原始(1pt) | 0 | **¥0.00** |
+| Gemini 3-Pro | off | 2天/31.0h | 27 | 97% | 4/8 | 石器(2pt) | 0 | ¥4.93 |
+| DeepSeek V3.2 | off | 2天/30.5h | 28 | 43% | 3/8 | 原始(0pt) | 0 | ¥1.27 |
+| Claude Sonnet 4.5 | on | 1天/27.0h | 25 | 91% | 5/8 | 原始(0pt) | 0 | ¥6.49 |
+| DeepSeek V3.2 | on | — | — | — | — | — | — | — |
 
 ## 工作原理
 
@@ -156,7 +172,7 @@ cli_sandbox/
 ├── engine/              # 核心引擎（规则引擎、事件系统、LLM 裁判、世界循环）
 ├── agent/               # AI 自动玩家（状态序列化、决策、推理）
 ├── interface/           # CLI 界面（Rich 渲染、中英文指令解析）
-├── llm/                 # 统一 LLM 客户端（Gemini / OpenAI / Anthropic / DeepSeek / Moonshot / Doubao）+ 计费
+├── llm/                 # 统一 LLM 客户端（Gemini / OpenAI / Anthropic / DeepSeek / Moonshot / Doubao / OpenRouter）+ 计费
 ├── eval/                # 评估（会话录制 JSONL）
 └── sessions/            # 录制文件输出（gitignored）
 ```

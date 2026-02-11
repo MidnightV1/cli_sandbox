@@ -2,6 +2,7 @@
 """统一LLM客户端 —— 基于 work_functions.py 的调用封装"""
 
 import os
+import requests
 from dotenv import load_dotenv
 
 # 加载 .env
@@ -12,14 +13,8 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 # 价格：美元 / 百万 token
 PRICING = {
     # Anthropic
-    'claude-3-big': {'input': 15, 'output': 75},
-    'claude-4-big': {'input': 15, 'output': 75},
-    'claude-35-mid': {'input': 3, 'output': 15},
-    'claude-4-mid': {'input': 3, 'output': 15},
-    'claude-37': {'input': 3, 'output': 15},
     'claude-45-mid': {'input': 3, 'output': 15},
     'claude-46-big': {'input': 5, 'output': 25},
-    'claude-35-small': {'input': 0.8, 'output': 4},
     # OpenAI
     'gpt-4.1': {'input': 2, 'output': 8},
     'gpt-4.1-mini': {'input': 0.4, 'output': 1.6},
@@ -39,6 +34,26 @@ PRICING = {
 }
 EX_RATE = 7.3  # 美元→人民币
 
+# OpenRouter 价格缓存（内存级，进程结束即释放）
+_openrouter_pricing_cache = {}
+
+
+def _fetch_openrouter_pricing():
+    """从 OpenRouter API 拉取所有模型价格，缓存到内存"""
+    if _openrouter_pricing_cache:
+        return
+    try:
+        resp = requests.get("https://openrouter.ai/api/v1/models", timeout=10)
+        for m in resp.json().get("data", []):
+            p = m.get("pricing", {})
+            if p.get("prompt") and p.get("completion"):
+                _openrouter_pricing_cache[m["id"]] = {
+                    'input': float(p["prompt"]) * 1_000_000,
+                    'output': float(p["completion"]) * 1_000_000,
+                }
+    except Exception:
+        pass
+
 
 class CostTracker:
     """LLM调用计费追踪"""
@@ -50,7 +65,9 @@ class CostTracker:
         self.total_cost_cny = 0.0
 
     def record(self, model: str, input_tokens: int, output_tokens: int):
-        pricing = PRICING.get(model, {'input': 3, 'output': 15})
+        pricing = PRICING.get(model) or _openrouter_pricing_cache.get(model)
+        if not pricing:
+            return  # 无价格信息则跳过计费
         input_cost = pricing['input'] * input_tokens / 1_000_000 * EX_RATE
         output_cost = pricing['output'] * output_tokens / 1_000_000 * EX_RATE
         cost = input_cost + output_cost
@@ -90,7 +107,6 @@ class LLMClient:
         'anthropic': {
             'claude-37': 'claude-3-7-sonnet-20250219',
             'claude-4-mid': 'claude-4-sonnet-20250514',
-            'claude-4-big': 'claude-opus-4-20250514',
             'claude-45-mid': 'claude-sonnet-4-5-20250929',
             'claude-46-big': 'claude-opus-4-6',
         },
@@ -141,6 +157,8 @@ class LLMClient:
             result = self._call_moonshot(system_prompt, user_prompt, model, temperature, thinking)
         elif provider == 'doubao':
             result = self._call_doubao(system_prompt, user_prompt, model, temperature, thinking)
+        elif provider == 'openrouter':
+            result = self._call_openrouter(system_prompt, user_prompt, model, temperature, thinking)
         else:
             raise ValueError(f"未知的LLM提供商：{provider}")
 
@@ -245,11 +263,18 @@ class LLMClient:
 
         # thinking配置
         thinking_config = None
-        if thinking:
-            level = thinking if isinstance(thinking, str) else "high"
-            if model_name.startswith('3-'):
-                thinking_config = types.ThinkingConfig(thinking_level=level)
+        if model_name.startswith('3-'):
+            # 3系列只支持thinking_level，不能完全关闭
+            # 3-Flash: minimal/low/medium/high, 3-Pro: low/high
+            if isinstance(thinking, str):
+                level = thinking
+            elif thinking:
+                level = 'high'
             else:
+                level = 'minimal' if model_name == '3-Flash' else 'low'
+            thinking_config = types.ThinkingConfig(thinking_level=level)
+        else:
+            if thinking:
                 thinking_config = types.ThinkingConfig(thinking_budget=-1)
 
         response = client.models.generate_content(
@@ -263,11 +288,17 @@ class LLMClient:
             contents=user_prompt,
         )
 
+        # candidates_token_count 不含 thinking tokens，需额外加上
+        thoughts = response.usage_metadata.thoughts_token_count
+        output_tokens = response.usage_metadata.candidates_token_count
+        if thoughts:
+            output_tokens += thoughts
+
         return {
             'model': model_name,
             'content': response.text,
             'input_tokens': response.usage_metadata.prompt_token_count,
-            'output_tokens': response.usage_metadata.candidates_token_count,
+            'output_tokens': output_tokens,
         }
 
     def _call_deepseek(self, system_prompt, user_prompt, model_name, temperature, thinking=False):
@@ -369,6 +400,44 @@ class LLMClient:
 
         response = client.chat.completions.create(
             model=model_id,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=temperature,
+            max_tokens=8192,
+            **extra,
+        )
+
+        return {
+            'model': model_name,
+            'content': response.choices[0].message.content,
+            'input_tokens': response.usage.prompt_tokens,
+            'output_tokens': response.usage.completion_tokens,
+        }
+
+    def _call_openrouter(self, system_prompt, user_prompt, model_name, temperature, thinking=False):
+        from openai import OpenAI
+        if 'openrouter' not in self._clients:
+            api_key = os.getenv('OPENROUTER_API_KEY')
+            if not api_key:
+                raise ValueError("缺少 OPENROUTER_API_KEY 环境变量")
+            self._clients['openrouter'] = OpenAI(
+                api_key=api_key,
+                base_url="https://openrouter.ai/api/v1",
+            )
+
+        # 首次调用拉取价格缓存
+        _fetch_openrouter_pricing()
+
+        client = self._clients['openrouter']
+        # model_name 直接透传（如 google/gemini-2.5-flash）
+        extra = {}
+        if thinking:
+            extra['extra_body'] = {"reasoning": {"enabled": True}}
+
+        response = client.chat.completions.create(
+            model=model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
