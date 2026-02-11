@@ -17,7 +17,7 @@ class AIPlayer:
         self.recipes = recipes_db or {}
         self.system_prompt = self._load_system_prompt()
         self.action_history: list[str] = []
-        self.max_history = 20
+        self.max_history = 100
 
     def _load_system_prompt(self) -> str:
         prompt_path = os.path.join(
@@ -88,7 +88,7 @@ class AIPlayer:
             for item in items:
                 props_str = ','.join(item.properties)
                 qty_str = f"(x{item.quantity})" if item.quantity > 1 else ""
-                dur_str = f" 耐久{item.durability}/{item.max_durability}" if item.durability > 0 else ""
+                dur_str = f" 耐久{item.durability}/{item.max_durability}" if item.durability is not None and item.durability > 0 else ""
                 act_str = f" 可：{'、'.join(item.actions)}" if item.actions else ""
                 lines.append(f"  {item.name}{qty_str} [{props_str}]{dur_str}{act_str}")
         else:
@@ -167,9 +167,27 @@ class AIPlayer:
         )
         return result['content'].strip()
 
-    def record_action(self, command: str, result_summary: str):
-        """记录一次行动（维持上下文窗口）"""
-        self.action_history.append(f"[{command}] → {result_summary}")
+    def record_action(self, command: str, world, result_msg: str = "",
+                       success: bool = True, events: list[str] = None):
+        """记录一次行动 + 当时状态快照 + 结果摘要 + 事件（维持上下文窗口）"""
+        s = world.player.status
+        loc_name = world.locations[world.player.location].name
+        phase = world.time_phase
+        mark = "✓" if success else "✗"
+        day = world.current_day
+        h = world.total_hours
+        # 结果摘要：截断到150字符，去掉换行
+        summary = result_msg.replace('\n', ' ').strip()[:150] if result_msg else ""
+        entry = (
+            f"第{day}天 {h:.1f}h {mark}[{command}] "
+            f"生命{s.health} 饥饿{s.hunger} 口渴{s.thirst} 体温{s.warmth} 体力{s.energy} "
+            f"@{loc_name} {world.weather} {phase}"
+        )
+        if summary:
+            entry += f" → {summary}"
+        if events:
+            entry += f" | {'；'.join(events)}"
+        self.action_history.append(entry)
 
     # ── 响应解析 ──
 

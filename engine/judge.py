@@ -102,13 +102,16 @@ class LLMJudge:
                 # 创建新物品
                 res = result.get('result', {})
                 if res:
+                    dur = res.get('durability')
+                    if not isinstance(dur, int) or dur < -1:
+                        dur = 5
                     new_item = Item(
                         id=f"invented_{world.action_count}",
                         name=res.get('name', '未知物品'),
                         description=res.get('description', ''),
                         properties=res.get('properties', []),
-                        durability=res.get('durability', 5),
-                        max_durability=res.get('durability', 5),
+                        durability=dur,
+                        max_durability=dur,
                         actions=res.get('actions', []),
                     )
                     # 缓存为新配方
@@ -138,10 +141,13 @@ class LLMJudge:
                         energy_cost=2,
                     )
                 else:
+                    side = result.get('side_effects') or {}
+                    energy_mod = side.get('energy_mod')
+                    energy_cost = (energy_mod * -1) if isinstance(energy_mod, (int, float)) and energy_mod < 0 else 1
                     return ActionResult(
                         success=True,
                         message=result.get('narrative', '行为成功。'),
-                        energy_cost=result.get('side_effects', {}).get('energy_mod', 1) * -1 if result.get('side_effects', {}).get('energy_mod', 0) < 0 else 1,
+                        energy_cost=energy_cost,
                     )
             else:
                 return ActionResult(

@@ -34,6 +34,8 @@ PRICING = {
     'v3': {'input': 0.28, 'output': 0.42},
     # Moonshot Kimi (价格: ¥4/¥21 per M tokens → USD)
     'k2.5': {'input': 0.55, 'output': 2.88},
+    # Doubao Seed (价格: ¥0.8/¥8 per M tokens → USD, 按input<32K+output>0.2K档)
+    'seed-1.8': {'input': 0.11, 'output': 1.10},
 }
 EX_RATE = 7.3  # 美元→人民币
 
@@ -110,6 +112,9 @@ class LLMClient:
         'moonshot': {
             'k2.5': 'kimi-k2.5',
         },
+        'doubao': {
+            'seed-1.8': 'doubao-seed-1-8-251228',
+        },
     }
 
     def __init__(self):
@@ -134,6 +139,8 @@ class LLMClient:
             result = self._call_deepseek(system_prompt, user_prompt, model, temperature, thinking)
         elif provider == 'moonshot':
             result = self._call_moonshot(system_prompt, user_prompt, model, temperature, thinking)
+        elif provider == 'doubao':
+            result = self._call_doubao(system_prompt, user_prompt, model, temperature, thinking)
         else:
             raise ValueError(f"未知的LLM提供商：{provider}")
 
@@ -330,6 +337,43 @@ class LLMClient:
                 {"role": "user", "content": user_prompt},
             ],
             temperature=temp,
+            max_tokens=8192,
+            **extra,
+        )
+
+        return {
+            'model': model_name,
+            'content': response.choices[0].message.content,
+            'input_tokens': response.usage.prompt_tokens,
+            'output_tokens': response.usage.completion_tokens,
+        }
+
+    def _call_doubao(self, system_prompt, user_prompt, model_name, temperature, thinking=False):
+        from openai import OpenAI
+        if 'doubao' not in self._clients:
+            api_key = os.getenv('ARK_API_KEY')
+            if not api_key:
+                raise ValueError("缺少 ARK_API_KEY 环境变量")
+            self._clients['doubao'] = OpenAI(
+                api_key=api_key,
+                base_url="https://ark.cn-beijing.volces.com/api/v3",
+            )
+
+        client = self._clients['doubao']
+        model_id = self.PROVIDER_MODELS['doubao'].get(model_name, model_name)
+
+        # thinking模式：通过extra_body传递
+        extra = {}
+        if thinking:
+            extra['extra_body'] = {"thinking": {"type": "enabled"}}
+
+        response = client.chat.completions.create(
+            model=model_id,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=temperature,
             max_tokens=8192,
             **extra,
         )

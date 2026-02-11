@@ -138,7 +138,7 @@ class RuleEngine:
             ]
             if item.actions:
                 lines.append(f"可用于：{'、'.join(item.actions)}")
-            if item.durability > 0:
+            if item.durability is not None and item.durability > 0:
                 lines.append(f"耐久度：{item.durability}/{item.max_durability}")
             if item.quantity > 1:
                 lines.append(f"数量：{item.quantity}")
@@ -238,7 +238,7 @@ class RuleEngine:
                     world.locations[lid].discovered = True
                     newly_found.append(world.locations[lid].name)
             tool.use_once()
-            durability_msg = f"（耐久 {tool.durability}/{tool.max_durability}）" if tool.durability > 0 else ""
+            durability_msg = f"（耐久 {tool.durability}/{tool.max_durability}）" if tool.durability is not None and tool.durability > 0 else ""
             if tool.durability == 0:
                 world.player.inventory.remove(tool.id)
                 durability_msg = "（已损坏）"
@@ -273,7 +273,7 @@ class RuleEngine:
         if tool.durability == 0:
             world.player.inventory.remove(tool.id)
             durability_msg = f" {tool.name}已经损坏了。"
-        elif tool.durability > 0:
+        elif tool.durability is not None and tool.durability > 0:
             durability_msg = f"（耐久 {tool.durability}/{tool.max_durability}）"
 
         return ActionResult(

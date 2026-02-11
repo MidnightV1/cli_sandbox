@@ -57,19 +57,11 @@ def main():
     # 初始化引擎
     engine = GameEngine(scenario_name=args.scenario, llm_client=llm_client)
 
-    # agent模式：配置裁判用同provider的轻量模型
+    # agent模式：裁判统一用 Gemini 3-Flash（成本低、速度快）
     if args.agent and llm_client:
         from engine.judge import LLMJudge
-        judge_model_map = {
-            'gemini': '2.5-Flash',
-            'openai': 'gpt-4.1-mini',
-            'anthropic': 'claude-37',
-            'deepseek': 'v3',
-            'moonshot': 'k2.5',
-        }
-        judge_model = judge_model_map.get(agent_provider, agent_model)
         world_rules = engine._load_world_rules()
-        engine.judge = LLMJudge(llm_client, world_rules, provider=agent_provider, model=judge_model)
+        engine.judge = LLMJudge(llm_client, world_rules, provider='gemini', model='3-Flash')
 
     # AI玩家
     ai_player = None
@@ -138,7 +130,7 @@ def main():
         if action_type == 'unknown':
             renderer.render_message(f"无法理解指令「{raw_input_str}」。输入 help 查看可用指令。", "yellow")
             if ai_player:
-                ai_player.record_action(raw_input_str, "无法理解的指令")
+                ai_player.record_action(raw_input_str, engine.world, result_msg="无法理解的指令", success=False)
                 consecutive_invalid += 1
                 if consecutive_invalid >= 5:
                     renderer.render_message("[Agent] 连续无效指令过多，执行观察。", "dim")
@@ -190,7 +182,12 @@ def main():
 
         # agent记录上下文
         if ai_player:
-            ai_player.record_action(raw_input_str, tick_result.action_result.message[:100])
+            ai_player.record_action(
+                raw_input_str, engine.world,
+                result_msg=tick_result.action_result.message,
+                success=tick_result.action_result.success,
+                events=tick_result.events,
+            )
 
         # 录制
         recorder.record_tick(

@@ -28,7 +28,7 @@ class Item:
 
     def use_once(self) -> bool:
         """使用一次，耐久度-1。返回是否仍可用"""
-        if self.durability == -1:
+        if self.durability is None or self.durability == -1:
             return True
         self.durability -= 1
         return self.durability > 0
@@ -40,7 +40,7 @@ class Item:
         parts = [self.name]
         if self.quantity > 1:
             parts[0] += f"(x{self.quantity})"
-        if self.durability > 0:
+        if self.durability is not None and self.durability > 0:
             parts.append(f"[耐久 {self.durability}/{self.max_durability}]")
         return " ".join(parts)
 
