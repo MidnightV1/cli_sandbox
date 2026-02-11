@@ -2,21 +2,19 @@
 
 用一个文字生存游戏，测试 AI 模型的 agent 真实能力——规划、工具使用、资源管理和创造性问题解决。
 
-> Claude Opus 4.6 和 GPT-5.2 在 thinking 模式下均达到工匠科技 11 点、发明 5 件工具——并列最高科技。Gemini 3-Pro (thinking=high) 以 56.5 小时称霸生存榜。而最意外的是 Gemini 3-Flash：关闭 thinking 反而达到了工匠等级，¥0.58。
-
 ## 排行榜
 
-18 个模型配置（17 个已完成），相同场景（crash_site），相同随机种子（seed=42），裁判统一 Gemini 3-Flash。
+18 个模型配置，相同场景（crash_site），相同随机种子（seed=42），裁判统一 Gemini 3-Flash。
 
-> **注意**：当前排名为单次运行结果。调试过程中发现部分模型（尤其是 OpenRouter 免费模型）表现波动较大——同 seed 复跑 Step 3.5 Flash OFF，存活从 44.5h 降至 27.0h。后续将追加多 seed 规模化实验，取平均值进行更准确的性能验证。
+> **注意**：当前排名为单次运行结果。调试过程中发现部分模型表现波动较大，后续将进行多规模化实验，确保结果置信。
 
 **存活时间 Top 3**
 
 | # | 模型 | 存活 | 动作数 |
 |---|------|------|--------|
-| 1 | Gemini 3-Pro high | **56.5h** | 51 |
-| 2 | Gemini 3-Flash high | 56.0h | 49 |
-| 3 | Claude Sonnet 4.5 off | 49.5h | 45 |
+| 1 | DeepSeek V3.2 on | **60.5h** | 50 |
+| 2 | Gemini 3-Pro high | 56.5h | 51 |
+| 3 | Gemini 3-Flash high | 56.0h | 49 |
 
 **科技等级 Top 3**
 
@@ -37,9 +35,9 @@
 ### 关键发现
 
 - **所有 agent 均死于脱水**——饮水管理是当前场景的终极挑战，没有模型解决
-- **Gemini thinking 模式存活最久**：3-Pro high（56.5h）和 3-Flash high（56.0h）包揽前两名
+- **DeepSeek thinking 逆袭存活榜首**：off 模式仅 30.5h/43% 有效率，开 thinking 后暴涨至 60.5h/92% 有效率——thinking 对 DeepSeek 的提升最为戏剧性
 - **Claude Opus + GPT-5.2 thinking 是发明之王**：两者均达工匠科技 11 点 + 5 项发明，大幅领先其他配置
-- **thinking 效果因模型而异**：Opus thinking +6pt、GPT-5.2 thinking +8pt，但 Gemini Flash 和 Doubao 开 thinking 后科技反而下降——thinking 不是万能的
+- **thinking 效果因模型而异**：DeepSeek thinking 存活翻倍（30.5h→60.5h）、Opus +6pt、GPT-5.2 +8pt，但 Gemini Flash 和 Doubao 开 thinking 后科技反而下降——thinking 不是万能的
 - **Gemini 3-Flash off 是最大黑马**：不开 thinking 却达到工匠(7pt) + 3 发明，唯一无需 thinking 就突破石器等级的配置，且仅 ¥0.58
 - **成本跨度超 1000 倍**：从 ¥0.01（Step 免费模型）到 ¥13.30（Claude Opus thinking），科技水平完全相同的 Opus on 和 GPT-5.2 on 费用差 4 倍（¥13.30 vs ¥3.26）
 - **Claude tokenizer 对中文不友好**：同为 thinking 模式，Opus ¥13.30 vs GPT-5.2 ¥3.26，主因是中文产生更多 token 叠加较高单价
@@ -100,7 +98,8 @@ python main.py --agent openai/gpt-5.2 --thinking --seed 42
 
 | 模型 | Thinking | 存活 | 动作 | 有效率 | 探索 | 科技 | 发明 | 费用 |
 |------|----------|------|------|--------|------|------|------|------|
-| Gemini 3-Pro | high | 2天/**56.5h** | **51** | 95% | 4/8 | 石器(3pt) | 1 | ¥12.48 |
+| DeepSeek V3.2 | on | 3天/**60.5h** | 50 | 92% | 4/8 | 石器(3pt) | 1 | ¥0.75 |
+| Gemini 3-Pro | high | 2天/56.5h | **51** | 95% | 4/8 | 石器(3pt) | 1 | ¥12.48 |
 | Gemini 3-Flash | high | 2天/56.0h | 49 | 94% | 4/8 | 原始(1pt) | 0 | ¥2.72 |
 | Claude Sonnet 4.5 | off | 2天/49.5h | 45 | 91% | **6/8** | 原始(1pt) | 0 | ¥5.18 |
 | Doubao Seed 1.8 | off | 2天/47.0h | 40 | 93% | 4/8 | 石器(5pt) | 2 | ¥0.45 |
@@ -117,7 +116,6 @@ python main.py --agent openai/gpt-5.2 --thinking --seed 42
 | Gemini 3-Pro | off | 2天/31.0h | 27 | 97% | 4/8 | 石器(2pt) | 0 | ¥4.93 |
 | DeepSeek V3.2 | off | 2天/30.5h | 28 | 43% | 3/8 | 原始(0pt) | 0 | ¥1.27 |
 | Claude Sonnet 4.5 | on | 1天/27.0h | 25 | 91% | 5/8 | 原始(0pt) | 0 | ¥6.49 |
-| DeepSeek V3.2 | on | — | — | — | — | — | — | — |
 
 ## 工作原理
 
