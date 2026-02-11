@@ -28,6 +28,8 @@ PRICING = {
     '3-Flash': {'input': 0.5, 'output': 3},
     # DeepSeek (V3.2, thinking/non-thinking同价)
     'v3': {'input': 0.28, 'output': 0.42},
+    # Moonshot Kimi (价格: ¥4/¥21 per M tokens → USD)
+    'k2.5': {'input': 0.55, 'output': 2.88},
 }
 EX_RATE = 7.3  # 美元→人民币
 
@@ -97,6 +99,9 @@ class LLMClient:
         'deepseek': {
             'v3': 'deepseek-chat',
         },
+        'moonshot': {
+            'k2.5': 'kimi-k2.5',
+        },
     }
 
     def __init__(self):
@@ -119,6 +124,8 @@ class LLMClient:
             result = self._call_gemini(system_prompt, user_prompt, model, temperature, thinking)
         elif provider == 'deepseek':
             result = self._call_deepseek(system_prompt, user_prompt, model, temperature, thinking)
+        elif provider == 'moonshot':
+            result = self._call_moonshot(system_prompt, user_prompt, model, temperature, thinking)
         else:
             raise ValueError(f"未知的LLM提供商：{provider}")
 
@@ -249,6 +256,47 @@ class LLMClient:
                 {"role": "user", "content": user_prompt},
             ],
             temperature=temperature if not thinking else None,
+            max_tokens=8192,
+            **extra,
+        )
+
+        return {
+            'model': model_name,
+            'content': response.choices[0].message.content,
+            'input_tokens': response.usage.prompt_tokens,
+            'output_tokens': response.usage.completion_tokens,
+        }
+
+    def _call_moonshot(self, system_prompt, user_prompt, model_name, temperature, thinking=True):
+        from openai import OpenAI
+        if 'moonshot' not in self._clients:
+            api_key = os.getenv('MOONSHOT_API_KEY')
+            if not api_key:
+                raise ValueError("缺少 MOONSHOT_API_KEY 环境变量")
+            self._clients['moonshot'] = OpenAI(
+                api_key=api_key,
+                base_url="https://api.moonshot.cn/v1",
+            )
+
+        client = self._clients['moonshot']
+        model_id = self.PROVIDER_MODELS['moonshot'].get(model_name, model_name)
+
+        # Kimi K2.5: thinking默认开启，通过extra_body关闭
+        # temperature限制：thinking=on → 只允许1，thinking=off → 只允许0.6
+        extra = {}
+        if thinking:
+            temp = 1
+        else:
+            extra['extra_body'] = {"thinking": {"type": "disabled"}}
+            temp = 0.6
+
+        response = client.chat.completions.create(
+            model=model_id,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=temp,
             max_tokens=8192,
             **extra,
         )

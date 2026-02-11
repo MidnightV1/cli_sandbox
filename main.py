@@ -65,6 +65,7 @@ def main():
             'openai': 'gpt-4.1-mini',
             'anthropic': 'claude-37',
             'deepseek': 'v3',
+            'moonshot': 'k2.5',
         }
         judge_model = judge_model_map.get(agent_provider, agent_model)
         world_rules = engine._load_world_rules()

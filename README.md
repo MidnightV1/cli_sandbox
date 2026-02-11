@@ -24,7 +24,7 @@ cli_sandbox/
 ├── engine/              # 核心引擎（规则引擎、事件系统、LLM 裁判、世界循环）
 ├── agent/               # AI 自动玩家（状态序列化、决策、推理）
 ├── interface/           # CLI 界面（Rich 渲染、中英文指令解析）
-├── llm/                 # 统一 LLM 客户端（Gemini / OpenAI / Anthropic / DeepSeek）+ 计费
+├── llm/                 # 统一 LLM 客户端（Gemini / OpenAI / Anthropic / DeepSeek / Moonshot）+ 计费
 ├── eval/                # 评估（会话录制 JSONL）
 └── sessions/            # 录制文件输出（gitignored）
 ```
@@ -66,6 +66,7 @@ python main.py --agent deepseek/v3 --thinking --seed 42
 | DeepSeek | v3 (V3.2) | `--agent deepseek/v3` |
 | OpenAI | gpt-4.1, gpt-4.1-mini | `--agent openai/gpt-4.1` |
 | Anthropic | claude-37, claude-4-mid | `--agent anthropic/claude-37` |
+| Moonshot | k2.5 (Kimi K2.5) | `--agent moonshot/k2.5` |
 
 ## Agent 评测结果
 
@@ -79,13 +80,15 @@ python main.py --agent deepseek/v3 --thinking --seed 42
 | Gemini 3-Flash | low | 2天/44.5h | 37 | 77% | 3/8 | 石器(3pt) | 1 | ¥0.30 |
 | DeepSeek V3.2 | off | 2天/30.5h | 25 | 87% | 4/8 | 原始(1pt) | 0 | ¥0.21 |
 | DeepSeek V3.2 | on | 2天/**46.0h** | 40 | **98%** | 3/8 | 原始(1pt) | 0 | ¥0.41 |
+| Kimi K2.5 | on | 1天/23.5h | 19 | 88% | 3/8 | 原始(1pt) | 0 | ¥0.80 |
+| Kimi K2.5 | off | 2天/34.0h | 32 | 91% | 3/8 | 原始(1pt) | 0 | ¥0.28 |
 
 ### 关键发现
 
 - **所有 agent 均死于脱水**，饮水管理是当前场景最大挑战
 - **Gemini 3-Pro + high thinking 综合最强**：唯一达到石器科技 + 成功发明新物品（钛合金匕首）
 - **DeepSeek V3.2 性价比极高**：thinking 模式 ¥0.41 获得 98% 有效率和最长存活时间（46h）
-- **thinking 模式普遍提升有效率**：减少格式错误和无效指令，策略更稳健
+- **thinking 模式普遍提升有效率**：减少格式错误和无效指令，策略更稳健——但 Kimi K2.5 是例外，thinking 模式反而存活更短（23.5h vs 34h），推理耗时长但决策未改善
 - **成本差异巨大**：最贵（3-Pro low ¥1.82）是最便宜（DS v3 ¥0.21）的 8.7 倍
 
 ## 开发
