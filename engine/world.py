@@ -25,7 +25,7 @@ class GameEngine:
         world_rules = self._load_world_rules()
         self.llm_client = llm_client
         if llm_client:
-            self.judge = LLMJudge(llm_client, world_rules)
+            self.judge = LLMJudge(llm_client, world_rules, materials=self.materials)
         else:
             self.judge = None
 

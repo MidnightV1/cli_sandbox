@@ -8,9 +8,10 @@ from models.items import Item
 
 
 class LLMJudge:
-    def __init__(self, llm_client, world_rules: str, provider: str = 'anthropic', model: str = 'claude-37'):
+    def __init__(self, llm_client, world_rules: str, materials: dict = None, provider: str = 'anthropic', model: str = 'claude-37'):
         self.llm = llm_client
         self.world_rules = world_rules
+        self.materials = materials or {}
         self.provider = provider
         self.model = model
 
@@ -47,10 +48,19 @@ class LLMJudge:
         loc = world.locations[world.player.location]
         inv_desc = "\n".join(f"- {item}" for item in world.player.inventory.list_all()) or "（空）"
 
+        # 注入当前实际可采集资源，防止裁判被静态环境描述误导
+        available = loc.get_available_resources(world.action_count)
+        if available:
+            res_names = [self.materials.get(r.item_id, {}).get('name', r.item_id) for r in available]
+            res_desc = "当前可采集：" + "、".join(res_names)
+        else:
+            res_desc = "当前该区域没有可采集的资源"
+
         prompt = f"""## 当前情况
 
 玩家位于：{loc.name}
 环境：{loc.description}
+{res_desc}
 天气：{world.weather}
 背包：
 {inv_desc}
@@ -113,6 +123,7 @@ class LLMJudge:
                         durability=dur,
                         max_durability=dur,
                         actions=res.get('actions', []),
+                        consumable=res.get('consumable'),
                     )
                     # 缓存为新配方
                     world.invented_recipes[f"invented_{world.action_count}"] = {
@@ -127,20 +138,23 @@ class LLMJudge:
 
                     world.player.inventory.add(new_item)
 
-                    # 发明奖励科技点数
+                    # 发明奖励科技点数（仅创造性行为，非简单采集/操作）
+                    is_creation = result.get('is_creation', True)
                     invented_id = f"invented_{world.action_count}"
-                    if invented_id not in world.crafted_recipes:
+                    tech_msg = ""
+                    if is_creation and invented_id not in world.crafted_recipes:
                         world.crafted_recipes.append(invented_id)
                         world.tech_points += 2
+                        tech_msg = "\n（科技 +2，发明创造）"
 
                     judge_reasoning = result.get('reasoning', '').strip()
                     judge_msg = f"\n[裁判] {judge_reasoning}" if judge_reasoning else ""
                     return ActionResult(
                         success=True,
-                        message=result.get('narrative', f"你成功制作了【{new_item.name}】！") + judge_msg + "\n（科技 +2，发明创造）",
+                        message=result.get('narrative', f"你成功制作了【{new_item.name}】！") + judge_msg + tech_msg,
                         items_consumed=[item.id for item in items],
                         items_gained=[new_item],
-                        energy_cost=20,  # 0-100 范围
+                        energy_cost=20 if is_creation else 10,  # 创造20，简单操作10
                     )
                 else:
                     # 不创造物品，直接生效（如捏破果实喝汁）

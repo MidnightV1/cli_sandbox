@@ -41,7 +41,7 @@ alien_forest:
     密集的菌类植物组成的"森林"。这里的"树"是巨大的真菌，
     笔直的菌柄支撑着伞状的菌盖，散发出微弱的蓝白色荧光。
     地面覆盖着一层柔软的苔藓，空气湿润而温暖。
-    藤蔓在树间蜿蜒交织，悬挂着发光的果实。
+    藤蔓在树间蜿蜒交织，偶尔能看到菌盖上凝结的露珠。
   resources:
     - {item_id: vine, quantity: 6, renewable: true, regen_ticks: 8}
     - {item_id: fungal_wood, quantity: 5, renewable: true, regen_ticks: 10}
