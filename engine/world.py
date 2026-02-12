@@ -124,19 +124,33 @@ class GameEngine:
                         world.game_over = True
                         world.game_over_reason = "你成功发出了求救信号！任务完成！"
 
-        # 时间推进 + 被动事件（仅消耗时间的成功动作触发）
+        # 时间推进 + 被动事件
         time_cost = result.time_cost
         events = []
-        if time_cost > 0 and result.success:
-            world.action_count += 1
-            events = self.events.process_time(time_cost, world)
+        if result.success:
+            # 成功动作：完整时间
+            if time_cost > 0:
+                world.action_count += 1
+                events = self.events.process_time(time_cost, world)
+            hours_elapsed = time_cost
+        else:
+            # 失败动作：物理类消耗一半时间（信息类为 0）
+            FAILURE_TIME_COSTS = {
+                'move': 0.5, 'gather': 0.25, 'use': 0.5,
+                'craft': 0.5, 'combine': 0.5,
+                'eat': 0.25, 'drink': 0.25,
+            }
+            failure_time = FAILURE_TIME_COSTS.get(action_type, 0.0)
+            if failure_time > 0:
+                events = self.events.process_time(failure_time, world)
+            hours_elapsed = failure_time
 
         # 状态快照
         status_after = self._snapshot_status()
 
         tick_result = TickResult(
             action_count=world.action_count,
-            hours_elapsed=time_cost if result.success else 0,
+            hours_elapsed=hours_elapsed,
             action_result=result,
             events=events,
             status_before=status_before,
