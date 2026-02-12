@@ -71,7 +71,13 @@ class EventSystem:
                     status.health += damage
                     events.append(f"{world.weather}持续侵蚀你的身体（生命{damage:+d}）")
 
-        # 6. 状态恶化（0-100 范围，移除最小伤害限制）
+        # 6. 预警信号（65-80 区间，仅提示不扣血，每天最多一次）
+        _warned = getattr(world, '_thirst_warned_day', -1)
+        if 65 <= status.thirst < 80 and _warned != world.current_day:
+            events.append("你感到有些口干。")
+            world._thirst_warned_day = world.current_day
+
+        # 7. 状态恶化（0-100 范围，移除最小伤害限制）
         if status.hunger >= 80:
             dmg = int(hours * 5)  # 5点/小时
             if dmg > 0:
