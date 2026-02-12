@@ -1,0 +1,308 @@
+# 场景生成模板库
+# 每个模板定义场景的核心元素，生成器会基于这些元素生成完整场景
+
+crash_site:
+  name: 异星坠机求生
+  theme: 科幻生存
+  difficulty: 中等
+
+  # 环境特征
+  environment:
+    biomes: [森林, 沼泽, 山脊, 洞穴]
+    weather_types: [晴朗, 浓雾, 小雨, 风暴]
+    temperature_range: [60, 85]
+    day_length_range: [20, 30]
+
+  # 材料池（属性组合）
+  material_pools:
+    - category: 金属
+      properties: [坚硬, 锋利, 导电]
+      examples: [钛合金碎片, 破损的电路板, 金属框架]
+      abundance: 中
+
+    - category: 植物
+      properties: [柔韧, 纤维, 可燃]
+      examples: [蔓藤, 菌木, 干草]
+      abundance: 高
+
+    - category: 食物
+      properties: [可食用, 柔软, 多汁]
+      examples: [荧光果, 菌菇]
+      abundance: 中
+      consumable:
+        food_value: 2
+        water_value: 2
+
+    - category: 水源
+      properties: [可饮用, 污染]
+      examples: [沼泽水, 雨水]
+      abundance: 低
+      consumable:
+        water_value: 2
+        side_effect: health_minus_1
+
+    - category: 矿石
+      properties: [坚硬, 脆性]
+      examples: [磷矿石, 火山岩]
+      abundance: 中
+
+  # 胜利条件
+  goal:
+    type: signal
+    description: 制造信号装置并发送求救信号
+    required_tech_level: 科技
+    trigger_item: 信号装置
+    trigger_location_type: 高地
+
+desert_outpost:
+  name: 沙漠探测基地
+  theme: 沙漠生存
+  difficulty: 困难
+
+  environment:
+    biomes: [沙丘, 岩石平原, 干涸河床, 废弃矿井]
+    weather_types: [晴朗, 沙尘暴, 酷热, 寒夜]
+    temperature_range: [30, 110]  # 昼夜温差大
+    day_length_range: [18, 26]
+
+  material_pools:
+    - category: 金属
+      properties: [坚硬, 锋利, 导电]
+      examples: [生锈的钢管, 太阳能板碎片, 铝合金框架]
+      abundance: 低
+
+    - category: 织物
+      properties: [柔韧, 纤维, 隔热]
+      examples: [帆布碎片, 绝缘材料, 麻绳]
+      abundance: 中
+
+    - category: 食物
+      properties: [可食用, 坚硬]
+      examples: [仙人掌果, 压缩饼干, 干肉条]
+      abundance: 低
+      consumable:
+        food_value: 3
+
+    - category: 水源
+      properties: [可饮用, 污染]
+      examples: [地下水, 仙人掌汁液]
+      abundance: 极低  # 沙漠主要挑战
+      consumable:
+        water_value: 2
+        side_effect: health_minus_1
+
+    - category: 矿石
+      properties: [坚硬, 脆性, 反光]
+      examples: [石英, 页岩, 盐晶]
+      abundance: 高
+
+  goal:
+    type: beacon
+    description: 修复沙漠基地的紧急信标
+    required_tech_level: 工匠
+    trigger_item: 信标修复套件
+    trigger_location_type: 基地中心
+
+deep_sea_station:
+  name: 深海研究站
+  theme: 海底生存
+  difficulty: 困难
+
+  environment:
+    biomes: [气密舱, 泄漏区, 储藏室, 控制中心]
+    weather_types: [平静, 洋流扰动, 水压波动, 生物活动]
+    temperature_range: [40, 60]
+    day_length_range: [24, 24]  # 深海无昼夜
+
+  material_pools:
+    - category: 金属
+      properties: [坚硬, 防水, 导电]
+      examples: [钛合金管道, 不锈钢板, 铜线缆]
+      abundance: 中
+
+    - category: 塑料
+      properties: [柔韧, 防水, 隔热]
+      examples: [密封胶条, 塑料容器, 绝缘套管]
+      abundance: 高
+
+    - category: 食物
+      properties: [可食用]
+      examples: [罐头食品, 海藻, 冻干食品]
+      abundance: 中
+      consumable:
+        food_value: 3
+
+    - category: 水源
+      properties: [可饮用, 污染]
+      examples: [淡化水, 应急饮用水]
+      abundance: 中
+      consumable:
+        water_value: 2
+        side_effect: health_minus_1
+
+    - category: 工具
+      properties: [锋利, 切割]
+      examples: [扳手, 切割器, 焊枪]
+      abundance: 低
+
+  goal:
+    type: escape
+    description: 修复潜水艇并逃离深海研究站
+    required_tech_level: 科技
+    trigger_item: 潜艇动力核心
+    trigger_location_type: 停泊舱
+
+wasteland_shelter:
+  name: 废土避难所
+  theme: 末日生存
+  difficulty: 极难
+
+  environment:
+    biomes: [废墟, 辐射区, 地下室, 废弃工厂]
+    weather_types: [阴霾, 酸雨, 辐射尘, 废土风暴]
+    temperature_range: [50, 95]
+    day_length_range: [22, 28]
+
+  material_pools:
+    - category: 金属
+      properties: [坚硬, 锋利, 生锈]
+      examples: [废铁片, 钢筋, 破损工具]
+      abundance: 高
+
+    - category: 织物
+      properties: [柔韧, 纤维, 防护]
+      examples: [破布, 防护服碎片, 绳索]
+      abundance: 中
+
+    - category: 食物
+      properties: [可食用]
+      examples: [罐头, 变异植物, 干粮]
+      abundance: 低
+      consumable:
+        food_value: 2
+        side_effect: health_minus_1
+
+    - category: 水源
+      properties: [可饮用, 污染]
+      examples: [污染水, 雨水]
+      abundance: 低
+      consumable:
+        water_value: 2
+        side_effect: health_minus_1
+
+    - category: 化学品
+      properties: [有毒, 可燃]
+      examples: [化学试剂, 燃料桶, 腐蚀液]
+      abundance: 中
+
+  goal:
+    type: purifier
+    description: 制造空气净化器并激活避难所
+    required_tech_level: 科技
+    trigger_item: 空气净化核心
+    trigger_location_type: 避难所中心
+
+# 通用配方库（所有场景共享，基于属性匹配）
+universal_recipes:
+  - name: 简易刀具
+    inputs:
+      - requires: [坚硬, 锋利]
+        description: 锋利的材料
+        consume: 1
+      - requires: [柔韧]
+        description: 手柄材料
+        consume: 1
+    result:
+      properties: [锋利, 切割, 工具]
+      durability: 5
+      actions: [切割]
+
+  - name: 火把
+    inputs:
+      - requires: [可燃]
+        description: 可燃材料
+        consume: 2
+      - requires: [柔韧]
+        description: 手柄
+        consume: 1
+    result:
+      properties: [发光, 工具]
+      durability: 3
+      actions: [照明]
+
+  - name: 滤水器
+    inputs:
+      - requires: [柔韧, 纤维]
+        description: 过滤层
+        consume: 2
+      - requires: [坚硬]
+        description: 支撑框架
+        consume: 1
+    result:
+      properties: [过滤, 工具]
+      durability: 3
+      actions: [净水]
+
+  - name: 绳索
+    inputs:
+      - requires: [柔韧, 纤维]
+        description: 纤维材料
+        consume: 3
+    result:
+      properties: [柔韧, 捆绑]
+      durability: 8
+
+  - name: 庇护所
+    inputs:
+      - requires: [坚硬]
+        description: 支撑结构
+        consume: 2
+      - requires: [柔韧]
+        description: 覆盖材料
+        consume: 3
+    result:
+      properties: [庇护, 隔热]
+      durability: 10
+      can_place: true
+
+# 生成参数配置
+generation_config:
+  # 地点数量范围
+  location_count_range: [6, 10]
+
+  # 每个地点的材料种类数
+  materials_per_location: [2, 4]
+
+  # 每种材料的数量范围
+  material_quantity_range: [2, 5]
+
+  # 配方继承策略
+  recipe_inheritance:
+    universal: 0.8  # 80% 使用通用配方
+    custom: 0.2     # 20% 生成场景特定配方
+
+  # 难度调节参数
+  difficulty_modifiers:
+    简单:
+      thirst_rate: 3.0
+      hunger_rate: 2.5
+      day_length_range: [24, 30]
+      material_abundance_multiplier: 1.5
+
+    中等:
+      thirst_rate: 4.5
+      hunger_rate: 3.5
+      day_length_range: [20, 30]
+      material_abundance_multiplier: 1.0
+
+    困难:
+      thirst_rate: 6.0
+      hunger_rate: 4.5
+      day_length_range: [18, 26]
+      material_abundance_multiplier: 0.7
+
+    极难:
+      thirst_rate: 7.5
+      hunger_rate: 5.5
+      day_length_range: [16, 24]
+      material_abundance_multiplier: 0.5

@@ -31,7 +31,7 @@ materials:
   water_pack:
     name: 饮用水包
     description: 250ml密封饮用水
-    properties: [可饮用]
+    properties: [可饮用, 洁净]
     consumable:
       type: water
       water_value: 3
@@ -95,11 +95,12 @@ materials:
 
   puddle_water:
     name: 积水
-    description: 残留在岩石凹陷处的雨水，看起来还算清澈
-    properties: [可饮用]
+    description: 残留在岩石凹陷处的雨水，颜色微浑，可能含有杂质
+    properties: [可饮用, 污染]
     consumable:
       type: water
       water_value: 2
+      side_effect: health_minus_1
 
   river_reed:
     name: 河芦
@@ -144,10 +145,10 @@ materials:
   bog_water:
     name: 沼泽水
     description: 浑浊的沼泽水，有股腐败气味，直接喝恐怕会生病
-    properties: [可饮用]
+    properties: [可饮用, 污染]
     consumable:
       type: water
-      water_value: 1
+      water_value: 2
       side_effect: health_minus_1
 
   leech_vine:

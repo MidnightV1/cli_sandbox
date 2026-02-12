@@ -287,15 +287,15 @@ class RuleEngine:
                     # 消耗脏水
                     world.player.inventory.remove(water_item.id, 1)
 
-                    # 产出干净的水
+                    # 产出干净的水（洁净水标准：water_value=3，无副作用）
                     clean_water = Item(
                         id=f"clean_water_{world.action_count}",
                         name="干净的水",
                         description="经过滤水器净化的水，可以安全饮用",
-                        properties=['可饮用'],
+                        properties=['可饮用', '洁净'],
                         consumable={
                             'type': 'water',
-                            'water_value': 2
+                            'water_value': 3
                         },
                         quantity=1
                     )
