@@ -3,4 +3,6 @@ __pycache__/
 *.pyc
 *.pyo
 sessions/
+eval_logs/
+*.sh
 .DS_Store
