@@ -6,13 +6,16 @@ from models.state import WorldState, ActionResult, TickResult, ACTION_TIME_COSTS
 from engine.rules import RuleEngine
 from engine.events import EventSystem
 from engine.judge import LLMJudge
-from data.loader import load_scenario
+from engine.scene_loader import load_scene
+
+# 默认场景路径
+DEFAULT_SCENE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'scenes', 'crash_site_42')
 
 
 class GameEngine:
-    def __init__(self, scenario_name: str = 'crash_site', llm_client=None):
+    def __init__(self, scene_dir: str = None, llm_client=None):
         # 加载场景
-        self.world, self.materials, self.recipes = load_scenario(scenario_name)
+        self.world, self.materials, self.recipes = load_scene(scene_dir or DEFAULT_SCENE)
 
         # 初始化子系统
         self.rules = RuleEngine(self.materials, self.recipes)
@@ -50,9 +53,65 @@ class GameEngine:
             elif action_type == 'use':
                 result = self._handle_generic_use_llm(args)
 
-        # 扣体力（仅成功且有消耗的动作）
-        if result.energy_cost > 0 and result.success:
-            world.player.status.energy = max(0, world.player.status.energy - result.energy_cost)
+        # 疲劳动作检测（能量不足时的惩罚）
+        is_fatigued = False
+        if result.success and result.energy_cost > 0 and world.player.status.energy < result.energy_cost:
+            # 能量不足但仍执行动作 = 疲劳动作
+            is_fatigued = True
+            fatigue_cost = 5  # 疲劳惩罚：消耗 5 点生命
+            world.player.status.health -= fatigue_cost
+            result.time_cost *= 1.5  # 疲劳动作耗时 ×1.5
+            result.message += f"\n⚠️ 你拖着疲惫的身体勉强完成了动作（生命 -{fatigue_cost}，耗时增加 50%）"
+
+        # 扣体力
+        if result.success:
+            # 成功动作：扣完整体力（即使能量不足也扣，可能变成负数后被 clamp 到 0）
+            if result.energy_cost > 0:
+                world.player.status.energy = max(0, world.player.status.energy - result.energy_cost)
+
+            # 应用 side_effects（如裁判判定的直接效果）
+            side_effects = result.extra.get('side_effects', {})
+            if side_effects:
+                if 'health_mod' in side_effects:
+                    world.player.status.health += side_effects['health_mod']
+                if 'hunger_mod' in side_effects:
+                    world.player.status.hunger += side_effects['hunger_mod']
+                if 'thirst_mod' in side_effects:
+                    world.player.status.thirst += side_effects['thirst_mod']
+                if 'warmth_mod' in side_effects:
+                    world.player.status.warmth += side_effects['warmth_mod']
+                # 状态值限制在 0-100
+                world.player.status.health = max(0, min(100, world.player.status.health))
+                world.player.status.hunger = max(0, min(100, world.player.status.hunger))
+                world.player.status.thirst = max(0, min(100, world.player.status.thirst))
+                world.player.status.warmth = max(0, min(100, world.player.status.warmth))
+        else:
+            # 失败动作：分级惩罚机制（0-100 范围）
+            # 排除：体力不足导致的失败（避免恶性循环）
+            is_energy_failure = "疲惫" in result.message or "体力" in result.message
+            if not is_energy_failure:
+                # 分级失败惩罚表
+                FAILURE_PENALTIES = {
+                    # 零成本失败（信息探索）
+                    'look': 0,
+                    'inventory': 0,
+                    'help': 0,
+                    'recipes': 0,
+                    'note': 0,
+                    # 低成本失败（物理操作）
+                    'move': 3,
+                    'gather': 5,
+                    'use': 5,
+                    # 高成本失败（复杂操作，成功成本的 50%）
+                    'craft': 10,
+                    'combine': 10,
+                    # 格式错误（轻微惩罚）
+                    'empty': 2,
+                    'unknown': 2,
+                }
+                penalty = FAILURE_PENALTIES.get(action_type, 5)  # 默认 5
+                if penalty > 0:
+                    world.player.status.energy = max(0, world.player.status.energy - penalty)
 
         # 目标检查
         if result.extra.get('goal_trigger'):

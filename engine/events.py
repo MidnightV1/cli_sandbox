@@ -5,9 +5,9 @@ import random
 from models.state import WorldState, PHASE_BOUNDARIES
 
 
-# 每小时状态衰减率
-HUNGER_RATE = 0.35   # 约28小时从0到10（需要每天吃2-3次）
-THIRST_RATE = 0.45   # 约22小时从0到10（比饥饿更紧急）
+# 每小时状态衰减率（0-100 范围）
+HUNGER_RATE = 3.5    # 约28小时从0到100（需要每天吃2-3次）
+THIRST_RATE = 4.5    # 约22小时从0到100（比饥饿更紧急）
 
 
 class EventSystem:
@@ -59,31 +59,34 @@ class EventSystem:
         if warmth_change != 0:
             status.warmth += warmth_change
 
-        # 5. 天气直接伤害（酸雨等）
+        # 5. 天气直接伤害（酸雨等，0-100 范围）
         weather_effects = self._get_weather_effects(world)
         if weather_effects:
             h_mod = weather_effects.get('health_mod', 0)
             exposed_only = weather_effects.get('exposed_only', False)
             if h_mod and (not exposed_only or not self._has_shelter(loc)):
-                # 按小时比例计算伤害
-                damage = int(h_mod * hours)
-                if damage < 0:
+                # 按小时比例计算伤害（health_mod 已是 0-100 范围的值）
+                damage = int(h_mod * hours * 10)  # ×10 适配新范围
+                if damage != 0:
                     status.health += damage
-                    events.append(f"{world.weather}持续侵蚀你的身体（生命{damage}）")
+                    events.append(f"{world.weather}持续侵蚀你的身体（生命{damage:+d}）")
 
-        # 6. 状态恶化
-        if status.hunger >= 8:
-            dmg = max(1, int(hours * 0.5))
-            status.health -= dmg
-            events.append(f"饥饿折磨着你（生命-{dmg}）")
-        if status.thirst >= 8:
-            dmg = max(1, int(hours * 0.8))
-            status.health -= dmg
-            events.append(f"严重脱水！（生命-{dmg}）")
-        if status.warmth <= 2:
-            dmg = max(1, int(hours * 0.5))
-            status.health -= dmg
-            events.append(f"寒冷刺骨（生命-{dmg}）")
+        # 6. 状态恶化（0-100 范围，移除最小伤害限制）
+        if status.hunger >= 80:
+            dmg = int(hours * 5)  # 5点/小时
+            if dmg > 0:
+                status.health -= dmg
+                events.append(f"饥饿折磨着你（生命-{dmg}）")
+        if status.thirst >= 80:
+            dmg = int(hours * 8)  # 8点/小时（更快）
+            if dmg > 0:
+                status.health -= dmg
+                events.append(f"严重脱水！（生命-{dmg}）")
+        if status.warmth <= 20:
+            dmg = int(hours * 5)  # 5点/小时
+            if dmg > 0:
+                status.health -= dmg
+                events.append(f"寒冷刺骨（生命-{dmg}）")
 
         # 7. 限制数值
         status.clamp_all()
@@ -126,18 +129,18 @@ class EventSystem:
         return transitions.get((old, new), f"周围的光线发生了变化。")
 
     def _calc_warmth_change(self, hours: float, world: WorldState, loc) -> int:
-        """计算体温变化"""
+        """计算体温变化（0-100 范围）"""
         rate = 0.0  # 每小时变化
 
         # 基础：户外缓慢降温
         if self._has_shelter(loc):
-            rate += 0.15  # 庇护所缓慢回温
+            rate += 1.5  # 庇护所缓慢回温
         else:
-            rate -= 0.15  # 户外缓慢降温
+            rate -= 1.5  # 户外缓慢降温
 
         # 夜晚额外降温
         if world.is_night:
-            rate -= 0.3
+            rate -= 3.0
 
         # 天气影响
         weather_effects = self._get_weather_effects(world)
@@ -145,7 +148,7 @@ class EventSystem:
             w_mod = weather_effects.get('warmth_mod', 0)
             exposed_only = weather_effects.get('exposed_only', False)
             if w_mod and (not exposed_only or not self._has_shelter(loc)):
-                rate += w_mod * 0.3  # 天气效果每小时
+                rate += w_mod * 3.0  # 天气效果每小时
 
         # 计算整数变化
         total = rate * hours

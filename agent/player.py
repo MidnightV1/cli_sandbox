@@ -81,18 +81,19 @@ class AIPlayer:
                     exits.append(f"{direction}→未知")
             lines.append(f"出口：{'，'.join(exits)}")
 
-        # 背包
-        lines.append("\n── 背包 ──")
+        # ★ 背包（放在位置信息之后、已知配方之前，提升优先级）
+        lines.append("\n★ ── 你的背包 ── ★")
         items = world.player.inventory.list_all()
         if items:
+            lines.append(f"【当前携带 {len(items)} 种物品】")
             for item in items:
                 props_str = ','.join(item.properties)
                 qty_str = f"(x{item.quantity})" if item.quantity > 1 else ""
                 dur_str = f" 耐久{item.durability}/{item.max_durability}" if item.durability is not None and item.durability > 0 else ""
                 act_str = f" 可：{'、'.join(item.actions)}" if item.actions else ""
-                lines.append(f"  {item.name}{qty_str} [{props_str}]{dur_str}{act_str}")
+                lines.append(f"  ✓ {item.name}{qty_str} [{props_str}]{dur_str}{act_str}")
         else:
-            lines.append("  （空）")
+            lines.append("【背包空空如也】")
 
         # 已知配方
         if world.player.known_recipes:
@@ -115,12 +116,12 @@ class AIPlayer:
             mark = "✓" if g.completed else "○"
             lines.append(f"  {mark} {g.description}")
 
-        # 上轮结果
-        if last_tick:
-            lines.append("\n── 上轮结果 ──")
-            lines.append(last_tick.action_result.message)
-            for event in last_tick.events:
-                lines.append(f"  >> {event}")
+        # 小本本（笔记本）
+        if hasattr(world.player, 'notebook') and world.player.notebook:
+            lines.append("\n📔 ── 你的小本本 ── 📔")
+            lines.append(f"【剩余空间：{world.player.notebook_capacity - len(world.player.notebook)}/{world.player.notebook_capacity}条】")
+            for note in world.player.notebook:
+                lines.append(f"  · {note}")
 
         return "\n".join(lines)
 
@@ -132,7 +133,7 @@ class AIPlayer:
 
         if self.action_history:
             history_text = "\n".join(self.action_history[-self.max_history:])
-            user_prompt += f"\n\n── 近期行动记录 ──\n{history_text}"
+            user_prompt += f"\n\n── 近3天行动记录 ──\n{history_text}"
 
         user_prompt += "\n\n请输出你的下一步指令（仅输出一行指令，不要解释）："
 
@@ -145,6 +146,8 @@ class AIPlayer:
             thinking=self.thinking,
         )
 
+        # 保存原始输出用于记录
+        self.last_raw_response = result['content']
         command = self._extract_command(result['content'])
         return command
 
@@ -192,30 +195,50 @@ class AIPlayer:
     # ── 响应解析 ──
 
     def _extract_command(self, raw_response: str) -> str:
-        """从LLM响应中提取单行指令"""
+        """从LLM响应中提取指令（严格要求XML格式，不允许任何额外文本）"""
+        import re
+
         text = raw_response.strip()
-        lines = [l.strip() for l in text.split('\n') if l.strip()]
 
-        if not lines:
-            return "观察"
+        # 移除markdown代码块包裹（某些模型会用```xml...```包裹输出）
+        text = re.sub(r'^```(?:xml)?\s*\n', '', text, flags=re.MULTILINE)
+        text = re.sub(r'\n```\s*$', '', text, flags=re.MULTILINE)
+        text = text.strip()
 
-        if len(lines) == 1:
-            return lines[0]
+        # 严格模式：只允许 XML 标签，不允许任何额外文本
+        # 合法格式：<action>...</action> 或 <action>...</action><detail>...</detail>
+        # 非法格式：任何 XML 标签外的文本都会导致解析失败
 
-        # 优先找以游戏指令开头的行
-        command_prefixes = [
-            '移动', '去', '走', '观察', '看', '查看', '检查',
-            '采集', '捡', '收集', '使用', '用', '制作', '制造',
-            '组合', '合成', '吃', '食用', '喝', '饮用', '休息', '睡',
-            '背包', '物品', '帮助', '配方', '尝试', '试试',
-            'move', 'look', 'gather', 'use', 'craft', 'combine',
-            'eat', 'drink', 'rest', 'inventory', 'help', 'recipes',
-        ]
+        # 移除所有 XML 标签后，剩余内容必须为空或只有空白字符
+        text_without_xml = re.sub(r'</?(?:action|detail|reason)>.*?</(?:action|detail|reason)>', '', text, flags=re.DOTALL | re.IGNORECASE)
+        text_without_xml = re.sub(r'<(?:action|detail|reason)>.*?</(?:action|detail|reason)>', '', text, flags=re.DOTALL | re.IGNORECASE)
 
-        for line in lines:
-            for prefix in command_prefixes:
-                if line.startswith(prefix):
-                    return line
+        # 检查是否有额外内容（允许空白字符和换行）
+        extra_content = text_without_xml.strip()
+        if extra_content:
+            # 有额外文本，严格拒绝
+            return ""
 
-        # 兜底：最后一行
-        return lines[-1]
+        # 解析 XML 格式 <action>...</action><detail>...</detail>
+        try:
+            action_match = re.search(r'<action>(.+?)</action>', text, re.DOTALL | re.IGNORECASE)
+            detail_match = re.search(r'<detail>(.+?)</detail>', text, re.DOTALL | re.IGNORECASE)
+
+            if action_match:
+                action = action_match.group(1).strip()
+                detail = detail_match.group(1).strip() if detail_match else ''
+
+                # 验证 action 不为空（避免空标签）
+                if not action:
+                    return ""
+
+                # 拼接完整命令
+                if detail:
+                    return f"{action} {detail}"
+                else:
+                    return action
+        except Exception:
+            pass
+
+        # XML 解析失败，返回空字符串（触发格式错误）
+        return ""

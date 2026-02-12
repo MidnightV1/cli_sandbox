@@ -19,6 +19,7 @@ CN_COMMANDS = {
     '帮助': 'help',
     '配方': 'recipes', '已知配方': 'recipes',
     '尝试': 'free_action', '试试': 'free_action',
+    '记录': 'note', '小本本': 'note', '笔记': 'note', '记': 'note',
 }
 
 
@@ -97,6 +98,10 @@ def parse_action(raw: str) -> tuple[str, dict]:
     # ── recipes ──
     if action_type == 'recipes':
         return 'recipes', {}
+
+    # ── note (小本本) ──
+    if action_type == 'note':
+        return 'note', {'content': rest}
 
     # ── free_action (try) ──
     if action_type == 'free_action':

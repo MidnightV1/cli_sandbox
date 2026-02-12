@@ -2,8 +2,7 @@
 """确定性规则引擎 —— 处理所有预定义动作"""
 
 from models.state import WorldState, ActionResult, ACTION_TIME_COSTS
-from models.items import Item
-from data.loader import create_item_from_material
+from models.items import Item, create_item_from_material
 
 
 class RuleEngine:
@@ -13,6 +12,21 @@ class RuleEngine:
 
     def resolve(self, action_type: str, args: dict, world: WorldState) -> ActionResult:
         """分发到对应处理器，自动注入time_cost"""
+        # 格式错误处理（会在world.py中自动扣1体力）
+        if action_type == 'empty':
+            return ActionResult(
+                success=False,
+                message="❌ 输出格式错误：未提取到有效指令。请严格按照XML格式输出：<reason>...</reason><action>...</action><detail>...</detail>",
+                energy_cost=0
+            )
+        if action_type == 'unknown':
+            raw = args.get('raw', '')
+            return ActionResult(
+                success=False,
+                message=f"❌ 输出格式错误：无法识别指令「{raw}」。请严格按照XML格式输出，action必须是：移动/采集/制作/组合/使用/吃/喝/休息/观察/尝试/记录",
+                energy_cost=0
+            )
+
         handlers = {
             'move': self._handle_move,
             'look': self._handle_look,
@@ -26,6 +40,7 @@ class RuleEngine:
             'inventory': self._handle_inventory,
             'help': self._handle_help,
             'recipes': self._handle_recipes,
+            'note': self._handle_note,
         }
         handler = handlers.get(action_type)
         if handler:
@@ -62,9 +77,9 @@ class RuleEngine:
         if not target_loc.discovered:
             return ActionResult(success=False, message=f"你还不知道那个方向有什么。先在高处观察或探索周围。", energy_cost=0)
 
-        # 能量检查
-        if world.player.status.energy <= 0:
-            return ActionResult(success=False, message="你精疲力竭，无法移动。先休息恢复体力。", energy_cost=0)
+        # 能量检查（移除硬性限制，允许疲劳行动）
+        # if world.player.status.energy <= 0:
+        #     return ActionResult(success=False, message="你精疲力竭，无法移动。先休息恢复体力。", energy_cost=0)
 
         # 执行移动
         world.player.location = matched_loc_id
@@ -82,7 +97,7 @@ class RuleEngine:
         if newly_discovered:
             msg += f"\n从这里你发现了新的地点：{'、'.join(newly_discovered)}"
 
-        return ActionResult(success=True, message=msg, energy_cost=1)
+        return ActionResult(success=True, message=msg, energy_cost=10)  # 0-100 范围
 
     # ──────────── 观察 ────────────
     def _handle_look(self, args: dict, world: WorldState) -> ActionResult:
@@ -170,8 +185,9 @@ class RuleEngine:
         target = args.get('target', '')
         loc = world.locations[world.player.location]
 
-        if world.player.status.energy <= 0:
-            return ActionResult(success=False, message="你太疲惫了，无法采集。", energy_cost=0)
+        # 能量检查（移除硬性限制，允许疲劳行动）
+        # if world.player.status.energy <= 0:
+        #     return ActionResult(success=False, message="你太疲惫了，无法采集。", energy_cost=0)
 
         # 模糊匹配资源
         matched_resource = None
@@ -202,7 +218,7 @@ class RuleEngine:
             success=True,
             message=f"你采集了【{item.name}】。{item.description}",
             items_gained=[item],
-            energy_cost=1,
+            energy_cost=10,  # 0-100 范围
         )
 
     # ──────────── 使用工具 ────────────
@@ -214,8 +230,9 @@ class RuleEngine:
         if not tool:
             return ActionResult(success=False, message=f"背包里没有「{tool_name}」。", energy_cost=0)
 
-        if world.player.status.energy <= 0:
-            return ActionResult(success=False, message="你太疲惫了。", energy_cost=0)
+        # 能量检查（移除硬性限制，允许疲劳行动）
+        # if world.player.status.energy <= 0:
+        #     return ActionResult(success=False, message="你太疲惫了。", energy_cost=0)
 
         # 信号装置 + 信号塔 = 通关
         loc = world.locations[world.player.location]
@@ -227,7 +244,7 @@ class RuleEngine:
                         "信号塔上的几何纹样随之亮起，一道光柱直冲云霄。\n"
                         "求救信号已发送！你成功了！",
                 extra={'goal_trigger': 'signal'},
-                energy_cost=1,
+                energy_cost=10,  # 0-100 范围
             )
 
         # 火把照明 - 发现未发现的区域
@@ -247,25 +264,57 @@ class RuleEngine:
                 return ActionResult(
                     success=True,
                     message=f"火光照亮了周围。你发现了新的通路：{'、'.join(newly_found)}{durability_msg}",
-                    energy_cost=1,
+                    energy_cost=10,  # 0-100 范围
                 )
             return ActionResult(
                 success=True,
                 message=f"你举起火把照亮四周，但没有发现新的东西。{durability_msg}",
-                energy_cost=1,
+                energy_cost=10,  # 0-100 范围
             )
 
         # 净水
         if '净水' in tool.actions and target:
             water_item = world.player.inventory.find(target)
             if water_item and '可饮用' in water_item.properties:
-                # 净化水：移除副作用
-                if water_item.consumable and water_item.consumable.get('side_effect'):
-                    water_item.consumable.pop('side_effect', None)
-                    water_item.consumable['water_value'] = max(water_item.consumable.get('water_value', 1), 2)
+                # 检查是否需要净化（有副作用或water_value较低）
+                needs_purify = False
+                if water_item.consumable:
+                    has_side_effect = water_item.consumable.get('side_effect')
+                    water_value = water_item.consumable.get('water_value', 0)
+                    needs_purify = has_side_effect or water_value < 2
+
+                if needs_purify:
+                    # 消耗脏水
+                    world.player.inventory.remove(water_item.id, 1)
+
+                    # 产出干净的水
+                    clean_water = Item(
+                        id=f"clean_water_{world.action_count}",
+                        name="干净的水",
+                        description="经过滤水器净化的水，可以安全饮用",
+                        properties=['可饮用'],
+                        consumable={
+                            'type': 'water',
+                            'water_value': 2
+                        },
+                        quantity=1
+                    )
+                    world.player.inventory.add(clean_water)
                     tool.use_once()
-                    return ActionResult(success=True, message=f"你用滤水器净化了{water_item.name}，现在可以安全饮用了。", energy_cost=1)
-                return ActionResult(success=True, message=f"{water_item.name}已经是干净的了。", energy_cost=0)
+
+                    durability_msg = f"（耐久 {tool.durability}/{tool.max_durability}）" if tool.durability is not None and tool.durability > 0 else ""
+                    if tool.durability == 0:
+                        world.player.inventory.remove(tool.id)
+                        durability_msg = "（滤水器已损坏）"
+
+                    return ActionResult(
+                        success=True,
+                        message=f"你用滤水器净化了{water_item.name}，获得了【干净的水】。{durability_msg}",
+                        items_consumed=[water_item.id],
+                        items_gained=[clean_water],
+                        energy_cost=5
+                    )
+                return ActionResult(success=True, message=f"{water_item.name}已经很干净了，不需要再过滤。", energy_cost=0)
 
         # 通用工具使用：扣耐久
         tool.use_once()
@@ -279,7 +328,7 @@ class RuleEngine:
         return ActionResult(
             success=True,
             message=f"你对{target}使用了{tool.name}。{durability_msg}",
-            energy_cost=1,
+            energy_cost=10,  # 0-100 范围
             needs_llm=True,  # 通用使用需要LLM判定效果
         )
 
@@ -287,8 +336,8 @@ class RuleEngine:
     def _handle_craft(self, args: dict, world: WorldState) -> ActionResult:
         recipe_name = args.get('target', '')
 
-        if world.player.status.energy < 2:
-            return ActionResult(success=False, message="制作需要至少2点体力。", energy_cost=0)
+        if world.player.status.energy < 20:
+            return ActionResult(success=False, message="制作需要至少20点体力。", energy_cost=0)
 
         # 模糊匹配配方
         matched_id, matched_recipe = self._find_recipe(recipe_name, world)
@@ -329,8 +378,8 @@ class RuleEngine:
         if len(item_names) < 2:
             return ActionResult(success=False, message="至少需要两个物品才能组合。", energy_cost=0)
 
-        if world.player.status.energy < 2:
-            return ActionResult(success=False, message="组合需要至少2点体力。", energy_cost=0)
+        if world.player.status.energy < 20:
+            return ActionResult(success=False, message="组合需要至少20点体力。", energy_cost=0)
 
         # 查找物品
         items = []
@@ -379,19 +428,19 @@ class RuleEngine:
         side_effects = {}
 
         if cons['type'] in ('food', 'both'):
-            food_val = cons.get('food_value', 1)
+            food_val = cons.get('food_value', 1) * 10  # 0-100 范围
             world.player.status.hunger = max(0, world.player.status.hunger - food_val)
             msgs.append(f"饥饿感缓解了（-{food_val}）")
 
         if cons['type'] in ('water', 'both'):
-            water_val = cons.get('water_value', 1)
+            water_val = cons.get('water_value', 1) * 10  # 0-100 范围
             world.player.status.thirst = max(0, world.player.status.thirst - water_val)
             msgs.append(f"口渴缓解了（-{water_val}）")
 
         if cons.get('side_effect') == 'health_minus_1':
-            world.player.status.health -= 1
-            msgs.append("但你感觉胃里一阵翻涌（生命-1）")
-            side_effects['health_mod'] = -1
+            world.player.status.health -= 10  # 0-100 范围
+            msgs.append("但你感觉胃里一阵翻涌（生命-10）")
+            side_effects['health_mod'] = -10
 
         # 消耗物品
         world.player.inventory.remove(item.id, 1)
@@ -406,21 +455,31 @@ class RuleEngine:
     # ──────────── 休息 ────────────
     def _handle_rest(self, args: dict, world: WorldState) -> ActionResult:
         loc = world.locations[world.player.location]
-        recovery = 3 if loc.shelter else 2
+        recovery = 30 if loc.shelter else 20  # 0-100 范围
         # 如果有庇护所放置物也算
         for placed in loc.placed_items:
             if '庇护' in placed.properties:
-                recovery = 3
+                recovery = 30
                 break
 
-        world.player.status.energy = min(
-            world.player.status.max_energy,
-            world.player.status.energy + recovery
-        )
+        current_energy = world.player.status.energy
+        new_energy = min(world.player.status.max_energy, current_energy + recovery)
+        actual_recovery = new_energy - current_energy
+
+        world.player.status.energy = new_energy
+
+        # 体力较高时使用通用描述，避免显示不准确的恢复量
+        if current_energy >= 70:
+            message = "你休息了一会儿。体力恢复满了，精力充沛。"
+        else:
+            message = f"你休息了一会儿。体力恢复了{actual_recovery}点。"
+
+        if recovery == 30 and not loc.shelter:
+            message += "（庇护所让你休息得更好）"
+
         return ActionResult(
             success=True,
-            message=f"你休息了一会儿。体力恢复了{recovery}点。"
-                    + ("（庇护所让你休息得更好）" if recovery == 3 and not loc.shelter else ""),
+            message=message,
             energy_cost=-recovery,  # 负值表示恢复
         )
 
@@ -487,6 +546,47 @@ class RuleEngine:
                 lines.append(f"  {ir.get('name', rid)}（自创配方）")
 
         return ActionResult(success=True, message="\n".join(lines), energy_cost=0)
+
+    # ──────────── 小本本 ────────────
+    def _handle_note(self, args: dict, world: WorldState) -> ActionResult:
+        """在小本本上记录笔记"""
+        content = args.get('content', '').strip()
+
+        if not content:
+            # 查看笔记本
+            if not world.player.notebook:
+                return ActionResult(
+                    success=True,
+                    message="📔 你的小本本是空白的。\n提示：使用「记录 内容」或「小本本 内容」来记录重要信息。",
+                    energy_cost=0
+                )
+
+            lines = ["📔 ── 你的小本本 ── 📔"]
+            lines.append(f"【剩余空间：{world.player.notebook_capacity - len(world.player.notebook)}/{world.player.notebook_capacity}条】")
+            for i, note in enumerate(world.player.notebook, 1):
+                lines.append(f"  {i}. {note}")
+            return ActionResult(success=True, message="\n".join(lines), energy_cost=0)
+
+        # 检查容量
+        if len(world.player.notebook) >= world.player.notebook_capacity:
+            return ActionResult(
+                success=False,
+                message=f"📔 小本本已经满了（{world.player.notebook_capacity}条）！你需要先整理一下才能记录新内容。",
+                energy_cost=0
+            )
+
+        # 限制单条笔记长度
+        max_length = 50
+        if len(content) > max_length:
+            content = content[:max_length] + "..."
+
+        # 记录笔记
+        world.player.notebook.append(content)
+        return ActionResult(
+            success=True,
+            message=f"📔 你在小本本上记录了：「{content}」\n剩余空间：{world.player.notebook_capacity - len(world.player.notebook)}/{world.player.notebook_capacity}条",
+            energy_cost=0
+        )
 
     # ──────────── 内部工具方法 ────────────
 
@@ -601,7 +701,7 @@ class RuleEngine:
             message=msg,
             items_consumed=consumed,
             items_gained=[new_item],
-            energy_cost=2,
+            energy_cost=20,  # 0-100 范围
             extra={'goal_trigger': result_def.get('goal_trigger')},
         )
 

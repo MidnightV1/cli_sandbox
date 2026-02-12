@@ -16,11 +16,11 @@ from eval.recorder import Recorder
 
 
 def main():
-    parser = argparse.ArgumentParser(description='异星求生 CLI沙盒')
-    parser.add_argument('--scenario', default='crash_site', help='场景名称（对应 data/scenarios/ 下的文件）')
+    parser = argparse.ArgumentParser(description='LLM Agent 生存沙盒')
+    parser.add_argument('--scene', default=None, help='场景目录路径（如 data/scenes/crash_site_42）')
     parser.add_argument('--no-llm', action='store_true', help='禁用LLM裁判（仅使用确定性规则引擎）')
     parser.add_argument('--player', default=None, help='玩家类型标记（human/ai/model_name），用于录制')
-    parser.add_argument('--seed', type=int, default=None, help='随机种子（用于可复现的天气/事件）')
+    parser.add_argument('--seed', type=int, default=None, help='随机种子（控制日长、天气等运行时随机）')
     parser.add_argument('--agent', type=str, default=None,
                         help='AI agent模式（格式：provider/model，如 gemini/3-Pro）')
     parser.add_argument('--thinking', type=str, nargs='?', const='high', default=None,
@@ -55,13 +55,13 @@ def main():
             print("[提示] 将以纯规则引擎模式运行。\n")
 
     # 初始化引擎
-    engine = GameEngine(scenario_name=args.scenario, llm_client=llm_client)
+    engine = GameEngine(scene_dir=args.scene, llm_client=llm_client)
 
-    # agent模式：裁判统一用 Gemini 3-Flash（成本低、速度快）
+    # agent模式：裁判统一用 Gemini 3-Pro（推理能力强，判断准确）
     if args.agent and llm_client:
         from engine.judge import LLMJudge
         world_rules = engine._load_world_rules()
-        engine.judge = LLMJudge(llm_client, world_rules, provider='gemini', model='3-Flash')
+        engine.judge = LLMJudge(llm_client, world_rules, provider='gemini', model='3-Pro')
 
     # AI玩家
     ai_player = None
@@ -76,11 +76,11 @@ def main():
 
     # 录制
     renderer = CLIRenderer()
-    recorder = Recorder()
     player_type = args.player or (f"{agent_provider}/{agent_model}" if args.agent else 'human')
+    recorder = Recorder(player_type=player_type, thinking=args.thinking)
     recorder.set_metadata(
         player_type=player_type,
-        scenario=args.scenario,
+        scenario=engine.world.scenario_name,
         llm_enabled=True if args.agent else not args.no_llm,
         seed=args.seed,
     )
@@ -98,7 +98,6 @@ def main():
 
     # 主循环
     last_tick = None
-    consecutive_invalid = 0
 
     while not engine.world.game_over:
         # ── 获取输入 ──
@@ -108,7 +107,7 @@ def main():
                 raw_input_str = ai_player.decide(game_state)
             except Exception as e:
                 renderer.render_message(f"[Agent异常] {e}", "red")
-                raw_input_str = "观察"
+                raise  # 直接抛出异常，不兜底
             renderer.render_message(f"\n[AI] {raw_input_str}", "bold blue")
             _time.sleep(0.2)
         else:
@@ -122,6 +121,22 @@ def main():
             break
 
         if not raw_input_str:
+            if ai_player:
+                # 截取模型原始输出（让模型在下轮看到自己输出了什么）
+                raw_out = getattr(ai_player, 'last_raw_response', '') or ''
+                snippet = raw_out.replace('\n', ' ').strip()[:80]
+                feedback = f"格式错误，你的输出不符合XML格式（-2体力）。你的原始输出：「{snippet}」"
+                renderer.render_message(f"格式错误：未能提取有效指令", "yellow")
+                engine.world.player.status.energy = max(0, engine.world.player.status.energy - 2)
+                ai_player.record_action("格式错误", engine.world, result_msg=feedback, success=False)
+                recorder.record_error(
+                    tick=engine.world.action_count,
+                    raw_input='',
+                    error_type='format_error',
+                    message=feedback,
+                    llm_raw_output=raw_out,
+                    world=engine.world,
+                )
             continue
 
         # ── 解析 ──
@@ -130,21 +145,22 @@ def main():
         if action_type == 'unknown':
             renderer.render_message(f"无法理解指令「{raw_input_str}」。输入 help 查看可用指令。", "yellow")
             if ai_player:
-                ai_player.record_action(raw_input_str, engine.world, result_msg="无法理解的指令", success=False)
-                consecutive_invalid += 1
-                if consecutive_invalid >= 5:
-                    renderer.render_message("[Agent] 连续无效指令过多，执行观察。", "dim")
-                    action_type, action_args = 'look', {'target': None}
-                    consecutive_invalid = 0
-                else:
-                    continue
-            else:
-                continue
+                raw_out = getattr(ai_player, 'last_raw_response', '') or ''
+                feedback = f"无法理解的指令「{raw_input_str}」（-2体力），合法指令：观察/移动/采集/制作/组合/使用/吃/喝/休息/尝试/记录"
+                engine.world.player.status.energy = max(0, engine.world.player.status.energy - 2)
+                ai_player.record_action(raw_input_str, engine.world, result_msg=feedback, success=False)
+                recorder.record_error(
+                    tick=engine.world.action_count,
+                    raw_input=raw_input_str,
+                    error_type='unknown_command',
+                    message=feedback,
+                    llm_raw_output=raw_out,
+                    world=engine.world,
+                )
+            continue
 
         if action_type == 'empty':
             continue
-
-        consecutive_invalid = 0
 
         # ── combine 推理 ──
         if action_type == 'combine' and not action_args.get('reasoning'):
@@ -196,6 +212,8 @@ def main():
             action_type,
             tick_result,
             tech_points=engine.world.tech_points,
+            notebook=engine.world.player.notebook if hasattr(engine.world.player, 'notebook') else [],
+            llm_raw_output=ai_player.last_raw_response if ai_player and hasattr(ai_player, 'last_raw_response') else None,
         )
 
         # 状态栏（消耗时间的成功动作才刷新）

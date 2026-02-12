@@ -70,10 +70,12 @@ class CLIRenderer:
         """渲染动作结果"""
         result = tick_result.action_result
 
+        # 添加 [系统] 标记，方便查看log时区分系统输出
+        msg = f"[系统] {result.message}"
         if result.success:
-            console.print(f"\n{result.message}", style="white")
+            console.print(f"\n{msg}", style="white")
         else:
-            console.print(f"\n{result.message}", style="yellow")
+            console.print(f"\n{msg}", style="yellow")
 
         # 事件
         for event in tick_result.events:

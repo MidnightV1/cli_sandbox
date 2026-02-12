@@ -234,7 +234,11 @@ class LLMClient:
             # GPT-5.x 系列：必须用 max_completion_tokens，temperature 只支持默认值1
             kwargs['max_completion_tokens'] = 8192
             if thinking:
-                effort = thinking if isinstance(thinking, str) else 'high'
+                # GPT-5.2-chat 只支持 medium，GPT-5.2 支持 high/medium/low
+                if isinstance(thinking, str):
+                    effort = thinking
+                else:
+                    effort = 'medium' if model_name == 'gpt-5.2-chat' else 'high'
                 kwargs['reasoning_effort'] = effort
         else:
             kwargs['temperature'] = temperature
@@ -434,7 +438,9 @@ class LLMClient:
         # model_name 直接透传（如 google/gemini-2.5-flash）
         extra = {}
         if thinking:
-            extra['extra_body'] = {"reasoning": {"enabled": True}}
+            # reasoning: 启用推理模式
+            # include_reasoning: false 只返回最终答案，不包含思考过程（避免污染XML输出）
+            extra['extra_body'] = {"reasoning": {"enabled": True}, "include_reasoning": False}
 
         response = client.chat.completions.create(
             model=model_name,

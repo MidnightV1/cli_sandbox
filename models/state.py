@@ -56,22 +56,23 @@ ACTION_TIME_COSTS = {
     'inventory': 0.0,
     'help': 0.0,
     'recipes': 0.0,
+    'note': 0.0,
 }
 
 
 @dataclass
 class PlayerStatus:
-    """玩家身体状态"""
-    health: int = 10        # 0=死亡
-    max_health: int = 10
-    hunger: int = 0         # 越高越饿，>=8开始掉血
-    max_hunger: int = 10
-    thirst: int = 0         # 越高越渴，>=8开始掉血（更快）
-    max_thirst: int = 10
-    warmth: int = 7         # 越低越冷，<=2开始掉血
-    max_warmth: int = 10
-    energy: int = 8         # 0=无法执行体力动作
-    max_energy: int = 10
+    """玩家身体状态（0-100 范围，提升颗粒度）"""
+    health: int = 100       # 0=死亡
+    max_health: int = 100
+    hunger: int = 0         # 越高越饿，>=80开始掉血
+    max_hunger: int = 100
+    thirst: int = 0         # 越高越渴，>=80开始掉血（更快）
+    max_thirst: int = 100
+    warmth: int = 70        # 越低越冷，<=20开始掉血
+    max_warmth: int = 100
+    energy: int = 80        # 0=无法执行体力动作（但可疲劳行动）
+    max_energy: int = 100
     # 内部累积器（保持状态值为整数，但时间推进用浮点）
     _hunger_acc: float = 0.0
     _thirst_acc: float = 0.0
@@ -106,6 +107,9 @@ class PlayerState:
     status: PlayerStatus = field(default_factory=PlayerStatus)
     known_recipes: list[str] = field(default_factory=list)
     discovered_locations: set[str] = field(default_factory=set)
+    # 小本本（记事本）
+    notebook: list[str] = field(default_factory=list)
+    notebook_capacity: int = 8  # 最多8条笔记
 
 
 @dataclass

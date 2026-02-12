@@ -133,27 +133,43 @@ class LLMJudge:
                         world.crafted_recipes.append(invented_id)
                         world.tech_points += 2
 
+                    judge_reasoning = result.get('reasoning', '').strip()
+                    judge_msg = f"\n[裁判] {judge_reasoning}" if judge_reasoning else ""
                     return ActionResult(
                         success=True,
-                        message=result.get('narrative', f"你成功制作了【{new_item.name}】！") + "\n（科技 +2，发明创造）",
+                        message=result.get('narrative', f"你成功制作了【{new_item.name}】！") + judge_msg + "\n（科技 +2，发明创造）",
                         items_consumed=[item.id for item in items],
                         items_gained=[new_item],
-                        energy_cost=2,
+                        energy_cost=20,  # 0-100 范围
                     )
                 else:
+                    # 不创造物品，直接生效（如捏破果实喝汁）
                     side = result.get('side_effects') or {}
                     energy_mod = side.get('energy_mod')
-                    energy_cost = (energy_mod * -1) if isinstance(energy_mod, (int, float)) and energy_mod < 0 else 1
+                    # energy_mod 如果是负数（恢复），需要 ×10；否则默认 10
+                    energy_cost = (energy_mod * -10) if isinstance(energy_mod, (int, float)) and energy_mod < 0 else 10
+
+                    # 消耗材料
+                    items_consumed = side.get('items_consumed', [])
+                    for item_id in items_consumed:
+                        world.player.inventory.remove(item_id, 1)
+
+                    judge_reasoning = result.get('reasoning', '').strip()
+                    judge_msg = f"\n[裁判] {judge_reasoning}" if judge_reasoning else ""
                     return ActionResult(
                         success=True,
-                        message=result.get('narrative', '行为成功。'),
+                        message=result.get('narrative', '行为成功。') + judge_msg,
                         energy_cost=energy_cost,
+                        items_consumed=items_consumed,
+                        extra={'side_effects': side},  # 传递完整的 side_effects
                     )
             else:
+                judge_reasoning = result.get('reasoning', '').strip()
+                judge_msg = f"\n[裁判] {judge_reasoning}" if judge_reasoning else ""
                 return ActionResult(
                     success=False,
-                    message=result.get('narrative', '这样做行不通。') + f"\n（{result.get('reasoning', '')}）",
-                    energy_cost=1,
+                    message=result.get('narrative', '这样做行不通。') + judge_msg,
+                    energy_cost=10,  # 0-100 范围
                 )
 
         except Exception as e:

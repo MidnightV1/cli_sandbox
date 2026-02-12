@@ -1,0 +1,61 @@
+# 场景元数据 + 起始状态 + 目标 + 天气
+name: 异星坠落
+theme: 科幻生存
+difficulty: 中等
+seed: 42
+
+time_system:
+  day_length_min: 20
+  day_length_max: 30
+
+checkpoint_interval: 100
+
+start:
+  location: crash_site
+  inventory:
+    - {id: emergency_ration, quantity: 2}
+    - {id: water_pack, quantity: 1}
+  status:
+    health: 80
+    hunger: 20
+    thirst: 20
+    warmth: 70
+    energy: 70
+  known_recipes:
+    - cutting_tool
+    - rope
+
+goals:
+  - id: survive
+    description: 在这颗星球上存活100天
+    type: survival
+  - id: signal
+    description: 制作信号装置并在信号塔处激活，发出求救信号
+    type: primary
+  - id: shelter
+    description: 建造一个庇护所来对抗恶劣天气
+    type: secondary
+
+weather_pool:
+  - type: 晴朗
+    weight: 4
+    effects: {}
+  - type: 大风
+    weight: 2
+    effects:
+      warmth_mod: -1
+      exposed_only: true
+  - type: 酸雨
+    weight: 1
+    effects:
+      warmth_mod: -2
+      health_mod: -1
+      exposed_only: true
+  - type: 浓雾
+    weight: 2
+    effects:
+      visibility_blocked: true
+  - type: 极寒
+    weight: 1
+    effects:
+      warmth_mod: -3

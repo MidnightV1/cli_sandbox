@@ -45,6 +45,19 @@ class Item:
         return " ".join(parts)
 
 
+def create_item_from_material(material_id: str, materials: dict, quantity: int = 1) -> Item:
+    """从材料模板创建物品实例"""
+    tmpl = materials[material_id]
+    return Item(
+        id=material_id,
+        name=tmpl['name'],
+        description=tmpl['description'],
+        properties=list(tmpl.get('properties', [])),
+        consumable=tmpl.get('consumable'),
+        quantity=quantity,
+    )
+
+
 class Inventory:
     """背包管理"""
 
