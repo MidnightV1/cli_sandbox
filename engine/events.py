@@ -77,6 +77,14 @@ class EventSystem:
             events.append("你感到有些口干。")
             world._thirst_warned_day = world.current_day
 
+        # 6b. 口渴首次越过 80 的转折信号（仅触发一次，之后由伤害事件接管）
+        _crossed_80 = getattr(world, '_thirst_crossed_80', False)
+        if status.thirst >= 80 and not _crossed_80:
+            events.append("你急需饮水！")
+            world._thirst_crossed_80 = True
+        elif status.thirst < 80:
+            world._thirst_crossed_80 = False  # 喝水降到80以下后重置
+
         # 7. 状态恶化（0-100 范围，移除最小伤害限制）
         if status.hunger >= 80:
             dmg = int(hours * 5)  # 5点/小时
