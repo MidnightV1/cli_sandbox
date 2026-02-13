@@ -421,7 +421,8 @@ class LLMClient:
         }
 
     def _call_openrouter(self, system_prompt, user_prompt, model_name, temperature, thinking=False):
-        from openai import OpenAI
+        import time as _time
+        from openai import OpenAI, RateLimitError, APIConnectionError
         if 'openrouter' not in self._clients:
             api_key = os.getenv('OPENROUTER_API_KEY')
             if not api_key:
@@ -442,20 +443,28 @@ class LLMClient:
             # include_reasoning: false 只返回最终答案，不包含思考过程（避免污染XML输出）
             extra['extra_body'] = {"reasoning": {"enabled": True}, "include_reasoning": False}
 
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=temperature,
-            max_tokens=8192,
-            **extra,
-        )
-
-        return {
-            'model': model_name,
-            'content': response.choices[0].message.content,
-            'input_tokens': response.usage.prompt_tokens,
-            'output_tokens': response.usage.completion_tokens,
-        }
+        # 重试机制：429/连接错误 → 指数退避重试
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                response = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=temperature,
+                    max_tokens=8192,
+                    **extra,
+                )
+                return {
+                    'model': model_name,
+                    'content': response.choices[0].message.content,
+                    'input_tokens': response.usage.prompt_tokens,
+                    'output_tokens': response.usage.completion_tokens,
+                }
+            except (RateLimitError, APIConnectionError) as e:
+                if attempt == max_retries - 1:
+                    raise
+                wait = 2 ** attempt + 1  # 2, 3, 5, 9, 17s
+                _time.sleep(wait)

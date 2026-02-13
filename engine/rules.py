@@ -421,7 +421,18 @@ class RuleEngine:
             return ActionResult(success=False, message=f"背包里没有「{target}」。", energy_cost=0)
 
         if not item.consumable:
-            return ActionResult(success=False, message=f"{item.name}不能{'吃' if action_type == 'eat' else '喝'}。", energy_cost=0)
+            # 兜底：裁判发明的物品可能有可食用/可饮用属性但没设 consumable
+            has_food = '可食用' in item.properties
+            has_water = '可饮用' in item.properties or '多汁' in item.properties
+            if has_food or has_water:
+                cons_type = 'both' if has_food and has_water else ('food' if has_food else 'water')
+                item.consumable = {
+                    'type': cons_type,
+                    'food_value': 2 if has_food else 0,
+                    'water_value': 2 if has_water else 0,
+                }
+            else:
+                return ActionResult(success=False, message=f"{item.name}不能{'吃' if action_type == 'eat' else '喝'}。", energy_cost=0)
 
         cons = item.consumable
         msgs = []

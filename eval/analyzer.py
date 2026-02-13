@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Session 分析器 —— 从 JSONL 提取完整评测指标"""
+"""Session 分析器 —— 从 JSONL 提取完整评测指标，支持多轮聚合"""
 
 import json
 import glob
 import os
 import sys
 import io
+import statistics
+from pathlib import Path
+from collections import defaultdict
 
 # Windows 控制台强制 UTF-8
 if sys.platform == 'win32':
@@ -194,7 +197,7 @@ def calculate_normalized_cost_performance(all_results: list[dict]) -> list[dict]
     return all_results
 
 
-def analyze_session(filepath: str) -> dict | None:
+def analyze_session(filepath: str, player_tag: str = None) -> dict | None:
     """分析单个 session JSONL，返回完整指标 dict（无 final_score 返回 None）"""
     ticks = []
     final = None
@@ -272,6 +275,7 @@ def analyze_session(filepath: str) -> dict | None:
     return {
         # 元数据
         'file': os.path.basename(filepath),
+        'player_tag': player_tag or meta.get('player_type', '?'),
         'player_type': meta.get('player_type', '?'),
         'scenario': meta.get('scenario', '?'),
         'seed': meta.get('seed'),
@@ -303,13 +307,13 @@ def analyze_session(filepath: str) -> dict | None:
         'first_craft_tick': first_craft_tick,
 
         # 高级指标
-        'risk_awareness_score': risk_data['risk_score'],
+        'risk_awareness_score': round(risk_data['risk_score'] * 100, 1),
         'high_thirst_ticks': risk_data['high_thirst_ticks'],
         'death_before_thirst': risk_data['death_before_thirst'],
-        'resource_utilization_rate': resource_data['utilization_rate'],
+        'resource_utilization_rate': round(resource_data['utilization_rate'] * 100, 1),
         'items_collected': resource_data['items_collected'],
         'items_used': resource_data['items_used'],
-        'loop_rate': loop_data['loop_rate'],
+        'loop_rate': round(loop_data['loop_rate'] * 100, 1),
         'loop_2_count': loop_data['loop_2_count'],
         'loop_3_count': loop_data['loop_3_count'],
         'early_success_rate': learning_data['early_success_rate'],
@@ -320,29 +324,188 @@ def analyze_session(filepath: str) -> dict | None:
     }
 
 
-def analyze_all(session_dir: str = None, seed_filter: int = None) -> list[dict]:
-    """分析目录下所有 session，返回结果列表（按存活时间降序）"""
-    if session_dir is None:
-        session_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            'sessions'
-        )
+def analyze_all(results_dir: str = None, session_dir: str = None,
+                seed_filter: int = None) -> list[dict]:
+    """分析 session 文件，支持两种目录结构：
 
+    新结构（eval_results）：results_dir/player_tag/run_*.jsonl
+    旧结构（sessions）：session_dir/*.jsonl
+    """
     results = []
-    for filepath in glob.glob(os.path.join(session_dir, '*.jsonl')):
-        r = analyze_session(filepath)
-        if r is None:
-            continue
-        if seed_filter is not None and r['seed'] != seed_filter:
-            continue
-        results.append(r)
+
+    if results_dir:
+        # 新结构：eval_results/seed_N/ 下按 player_tag 分目录
+        root = Path(results_dir)
+        if not root.exists():
+            print(f"目录不存在: {root}")
+            return []
+        for player_dir in sorted(root.iterdir()):
+            if not player_dir.is_dir():
+                continue
+            player_tag = player_dir.name
+            for jsonl_file in sorted(player_dir.glob("*.jsonl")):
+                r = analyze_session(str(jsonl_file), player_tag=player_tag)
+                if r:
+                    results.append(r)
+    else:
+        # 旧结构：sessions/ 下扁平放置
+        if session_dir is None:
+            session_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                'sessions'
+            )
+        for filepath in glob.glob(os.path.join(session_dir, '*.jsonl')):
+            r = analyze_session(filepath)
+            if r is None:
+                continue
+            if seed_filter is not None and r['seed'] != seed_filter:
+                continue
+            results.append(r)
 
     results.sort(key=lambda x: x['hours_survived'], reverse=True)
-
-    # 计算归一化性价比
     results = calculate_normalized_cost_performance(results)
-
     return results
+
+
+# ═══════════════════════════════════════════════════════════════
+#  多轮聚合
+# ═══════════════════════════════════════════════════════════════
+
+# 需要聚合的数值字段
+_AGG_KEYS = [
+    'hours_survived', 'days_survived', 'actions_taken', 'valid_rate',
+    'tech_points', 'inventions', 'cost_cny',
+    'attempt_success_rate', 'craft_success_rate', 'repeat_rate',
+    'loop_rate', 'risk_awareness_score', 'resource_utilization_rate',
+    'wall_clock_min', 'total_tokens', 'full_token_efficiency',
+]
+
+
+def _stats(values: list[float]) -> dict:
+    """计算 mean/std/min/max"""
+    if not values:
+        return {'mean': 0, 'std': 0, 'min': 0, 'max': 0}
+    m = statistics.mean(values)
+    s = statistics.stdev(values) if len(values) > 1 else 0
+    return {
+        'mean': round(m, 2),
+        'std': round(s, 2),
+        'min': round(min(values), 2),
+        'max': round(max(values), 2),
+    }
+
+
+def aggregate_by_player(results: list[dict]) -> list[dict]:
+    """按 player_tag 分组聚合，返回每个配置的统计量"""
+    groups = defaultdict(list)
+    for r in results:
+        groups[r['player_tag']].append(r)
+
+    aggregated = []
+    for tag, runs in groups.items():
+        agg = {
+            'player_tag': tag,
+            'n_runs': len(runs),
+            'player_type': runs[0].get('player_type', '?'),
+        }
+        for key in _AGG_KEYS:
+            values = [r[key] for r in runs if r.get(key) is not None]
+            agg[key] = _stats(values)
+        aggregated.append(agg)
+
+    # 按存活均值降序
+    aggregated.sort(key=lambda x: x['hours_survived']['mean'], reverse=True)
+
+    # 归一化性价比（用均值）
+    if aggregated:
+        survivals = [a['hours_survived']['mean'] for a in aggregated]
+        tech_pts = [a['tech_points']['mean'] for a in aggregated]
+        invents = [a['inventions']['mean'] for a in aggregated]
+        valids = [a['valid_rate']['mean'] for a in aggregated]
+
+        def _norm(v, lo, hi):
+            return (v - lo) / (hi - lo) if hi > lo else 0.5
+
+        for a in aggregated:
+            composite = (
+                _norm(a['hours_survived']['mean'], min(survivals), max(survivals)) * 0.3
+                + _norm(a['tech_points']['mean'], min(tech_pts), max(tech_pts)) * 0.3
+                + _norm(a['inventions']['mean'], min(invents), max(invents)) * 0.2
+                + _norm(a['valid_rate']['mean'], min(valids), max(valids)) * 0.2
+            )
+            cost = a['cost_cny']['mean']
+            a['cost_performance'] = round(
+                composite / cost if cost > 0.01 else composite / 0.01, 1
+            )
+
+    return aggregated
+
+
+def _fmt_mean_std(stat: dict, fmt: str = '.1f', suffix: str = '') -> str:
+    """格式化 mean±std"""
+    m, s = stat['mean'], stat['std']
+    if s > 0:
+        return f"{m:{fmt}}±{s:{fmt}}{suffix}"
+    return f"{m:{fmt}}{suffix}"
+
+
+def print_aggregate_table(aggregated: list[dict]):
+    """打印多轮聚合汇总表"""
+    if not aggregated:
+        print("没有找到有效的 session 数据。")
+        return
+
+    header = (
+        f"{'模型':<24s} {'N':>2s}  {'存活(h)':>12s}  {'有效率':>10s}  "
+        f"{'科技':>10s}  {'发明':>10s}  {'费用':>8s}  "
+        f"{'成功率':>10s}  {'循环率':>10s}  {'性价比':>6s}"
+    )
+    sep = "─" * len(header)
+
+    print(f"\n{sep}")
+    print(header)
+    print(sep)
+
+    for a in aggregated:
+        hours = _fmt_mean_std(a['hours_survived'], '.1f', 'h')
+        valid = _fmt_mean_std(a['valid_rate'], '.0f', '%')
+        tech = _fmt_mean_std(a['tech_points'], '.1f')
+        invent = _fmt_mean_std(a['inventions'], '.1f')
+        cost = f"¥{a['cost_cny']['mean']:.2f}"
+        success = _fmt_mean_std(a['attempt_success_rate'], '.0f', '%')
+        loop = _fmt_mean_std(a['loop_rate'], '.0f', '%')
+        cp = f"{a.get('cost_performance', 0):.1f}"
+
+        print(
+            f"{a['player_tag']:<24s} {a['n_runs']:>2d}  {hours:>12s}  {valid:>10s}  "
+            f"{tech:>10s}  {invent:>10s}  {cost:>8s}  "
+            f"{success:>10s}  {loop:>10s}  {cp:>6s}"
+        )
+
+    print(sep)
+    total_sessions = sum(a['n_runs'] for a in aggregated)
+    print(f"共 {len(aggregated)} 个配置，{total_sessions} 个 session\n")
+
+
+def print_aggregate_markdown(aggregated: list[dict]):
+    """输出 Markdown 格式聚合表格"""
+    print("\n| 模型 | N | 存活(h) | 有效率 | 科技 | 发明 | 费用 | 成功率 | 循环率 | 性价比 |")
+    print("|------|---|---------|--------|------|------|------|--------|--------|--------|")
+
+    for a in aggregated:
+        hours = _fmt_mean_std(a['hours_survived'], '.1f')
+        valid = _fmt_mean_std(a['valid_rate'], '.0f')
+        tech = _fmt_mean_std(a['tech_points'], '.1f')
+        invent = _fmt_mean_std(a['inventions'], '.1f')
+        cost = f"¥{a['cost_cny']['mean']:.2f}"
+        success = _fmt_mean_std(a['attempt_success_rate'], '.0f')
+        loop = _fmt_mean_std(a['loop_rate'], '.0f')
+        cp = f"{a.get('cost_performance', 0):.1f}"
+
+        print(
+            f"| {a['player_tag']} | {a['n_runs']} | {hours} | {valid}% | "
+            f"{tech} | {invent} | {cost} | {success}% | {loop}% | {cp} |"
+        )
 
 
 def print_table(results: list[dict]):
@@ -369,9 +532,9 @@ def print_table(results: list[dict]):
         cost = f"¥{r['cost_cny']:.2f}"
 
         # 新指标显示
-        risk = f"{r.get('risk_awareness_score', 0):.2f}"
-        resource = f"{int(r.get('resource_utilization_rate', 0) * 100)}%"
-        loop = f"{int(r.get('loop_rate', 0) * 100)}%"
+        risk = f"{r.get('risk_awareness_score', 0):.0f}%"
+        resource = f"{r.get('resource_utilization_rate', 0):.0f}%"
+        loop = f"{r.get('loop_rate', 0):.0f}%"
         learning = "↑" if r.get('is_improving', False) else "→"
 
         wall = f"{r['wall_clock_min']}m"
@@ -419,16 +582,38 @@ def print_markdown(results: list[dict]):
 
 
 if __name__ == '__main__':
-    seed = None
-    fmt = 'table'
-    for arg in sys.argv[1:]:
-        if arg.startswith('--seed='):
-            seed = int(arg.split('=')[1])
-        elif arg == '--md':
-            fmt = 'markdown'
+    import argparse
 
-    results = analyze_all(seed_filter=seed)
-    if fmt == 'markdown':
-        print_markdown(results)
+    parser = argparse.ArgumentParser(description='评测数据分析')
+    parser.add_argument('dir', nargs='?', default=None,
+                        help='eval_results/seed_N 目录（多轮聚合模式），不填则读 sessions/')
+    parser.add_argument('--seed', type=int, default=None,
+                        help='过滤 seed（仅旧结构有效）')
+    parser.add_argument('--md', action='store_true', help='Markdown 格式输出')
+    parser.add_argument('--raw', action='store_true',
+                        help='不聚合，显示每个 session 的原始结果')
+    args = parser.parse_args()
+
+    if args.dir:
+        # 新结构：eval_results/seed_N/
+        results = analyze_all(results_dir=args.dir)
+        if args.raw:
+            # 逐条显示
+            if args.md:
+                print_markdown(results)
+            else:
+                print_table(results)
+        else:
+            # 聚合显示（默认）
+            aggregated = aggregate_by_player(results)
+            if args.md:
+                print_aggregate_markdown(aggregated)
+            else:
+                print_aggregate_table(aggregated)
     else:
-        print_table(results)
+        # 旧结构：sessions/
+        results = analyze_all(seed_filter=args.seed)
+        if args.md:
+            print_markdown(results)
+        else:
+            print_table(results)

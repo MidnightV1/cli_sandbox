@@ -43,7 +43,11 @@ class EventSystem:
                 events.append(f"天气变化：{world.weather}。")
             world._prev_phase = new_phase
 
-        # 3. 饥饿和口渴累积
+        # 3. 饥饿和口渴累积（先快照，用于 step 7 比例伤害）
+        hunger_before = status.hunger
+        thirst_before = status.thirst
+        warmth_before = status.warmth
+
         status._hunger_acc += hours * HUNGER_RATE
         while status._hunger_acc >= 1.0:
             status.hunger += 1
@@ -85,19 +89,22 @@ class EventSystem:
         elif status.thirst < 80:
             world._thirst_crossed_80 = False  # 喝水降到80以下后重置
 
-        # 7. 状态恶化（0-100 范围，移除最小伤害限制）
+        # 7. 状态恶化（按实际越线时长比例计算伤害）
         if status.hunger >= 80:
-            dmg = int(hours * 5)  # 5点/小时
+            effective = self._effective_hours(hunger_before, status.hunger, hours, 80)
+            dmg = int(effective * 5)  # 5点/小时
             if dmg > 0:
                 status.health -= dmg
                 events.append(f"饥饿折磨着你（生命-{dmg}）")
         if status.thirst >= 80:
-            dmg = int(hours * 8)  # 8点/小时（更快）
+            effective = self._effective_hours(thirst_before, status.thirst, hours, 80)
+            dmg = int(effective * 8)  # 8点/小时（更快）
             if dmg > 0:
                 status.health -= dmg
                 events.append(f"严重脱水！（生命-{dmg}）")
         if status.warmth <= 20:
-            dmg = int(hours * 5)  # 5点/小时
+            effective = self._effective_hours_below(warmth_before, status.warmth, hours, 20)
+            dmg = int(effective * 5)  # 5点/小时
             if dmg > 0:
                 status.health -= dmg
                 events.append(f"寒冷刺骨（生命-{dmg}）")
@@ -131,6 +138,28 @@ class EventSystem:
             events.append(f"── 第{world.checkpoints_passed + 1}阶段检查点（第{next_cp}天）──")
 
         return events
+
+    @staticmethod
+    def _effective_hours(before: float, after: float, hours: float, threshold: float) -> float:
+        """计算实际处于阈值以上的时长（用于伤害比例计算）"""
+        if before >= threshold:
+            return hours  # 整段时间都在阈值以上
+        delta = after - before
+        if delta <= 0:
+            return 0
+        overflow = after - threshold
+        return hours * overflow / delta  # 按比例
+
+    @staticmethod
+    def _effective_hours_below(before: float, after: float, hours: float, threshold: float) -> float:
+        """计算实际处于阈值以下的时长（体温专用，越低越危险）"""
+        if before <= threshold:
+            return hours  # 整段时间都在阈值以下
+        delta = before - after
+        if delta <= 0:
+            return 0
+        underflow = threshold - after
+        return hours * underflow / delta  # 按比例
 
     def _describe_phase_change(self, old: str, new: str) -> str:
         """描述时间阶段变化（不直接说阶段名，而是用感受描述）"""

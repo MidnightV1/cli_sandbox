@@ -1,61 +1,97 @@
-# 🌌 异星求生：AI Agent 真实能力评测
+# AI 存活挑战 —— 一个沙盒里的实验
 
 <div align="center">
 
-**用一个文字生存游戏，测试 AI 的规划、工具创造和资源管理**
-**不是玩具 benchmark，是真实决策压力测试**
+**把大模型放进一个文字游戏沙盒，看看会发生什么**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Models Tested: 21](https://img.shields.io/badge/models_tested-21-orange.svg)]()
+[![Models: 12](https://img.shields.io/badge/models-12-orange.svg)]()
+[![Sessions: 800+](https://img.shields.io/badge/sessions-800+-brightgreen.svg)]()
+
+:page_facing_up: **[完整评测报告](REPORT.md)** · :gear: **[技术文档](CLAUDE.md)**
 
 </div>
 
 ---
 
-## 🏆 生存排行榜
+## 似乎可能发现了一些不一样的东西
+
+在 800+ 局游戏、229 个有效会话中，观察到了静态 benchmark 里看不到的现象：
+
+### 推理链增强了规则遵循，但没增强创造力
+
+思维模式（thinking）将 DeepSeek 的制作成功率从 5% 拉到 90%——但没有任何一个模型因为开了 thinking 就多发明了一样东西。
+
+已有研究在静态创造力测试中发现推理策略[无法同时提升收敛与发散思维](https://arxiv.org/abs/2410.03703)。在动态 agent 环境中，用"制作成功率 vs 发明数量"这对实操指标，观察到了同一现象的 agent 版本。
+
+### 50 步连续决策下，模型表现出可辨识的行为模式
+
+| | Claude Opus ON | GPT-5.2 OFF | DeepSeek V3.2 OFF | Qwen3 Max ON |
+|---|---|---|---|---|
+| **行为标签** | 建设者 | 一招鲜 | 幻觉制作者 | 格式崩溃者 |
+| **特征** | "四季"策略——积累→维持→探索→创造 | 高成功率但只会做绳索 | 55 次尝试不存在的配方 | 85% 输出变乱码 |
+| **发明** | 5 种工具，覆盖 5 个品类 | 10 局只发明 1 种 | 0（全是幻觉配方） | 无法正常游玩 |
+
+现有 LLM "人格"研究主要依赖[心理学量表](https://arxiv.org/html/2508.04826)。我们从实际行为轨迹中归纳出这些模式——不是问模型"你是什么性格"，而是看它**做了什么**。
+
+### 同一个技术，在不同模型上方向完全相反
+
+Claude Sonnet 开 thinking 后存活时间暴跌 15.3h（p=0.005）；Claude Opus 开了反而涨 8.4h。这与近期["思考让 Agent 变内向"](https://arxiv.org/abs/2602.07796)的研究方向一致——我们的数据提供了模型粒度的实证：**不是"thinking 好不好"的问题，而是"对哪个模型好"的问题**。
+
+### 活得久和活得好是两回事
+
+存活时间排名和"含金量"排名并不一致。有的模型靠反复采集+休息苟到 50h，科技点为零；有的模型只活了 40h，但推进了两个科技等级、发明了三种工具。GPT-5.2-chat 存活排名第二但几乎没有发明，Claude Opus 一边活最久一边发明最多——**同样是"活下来"，策略质量完全不同**。
+
+---
+
+## 一局游戏里会发生什么
+
+AI 坠落在一颗陌生星球上。80 点生命值，没有地图，口渴值每 tick 上升。它需要在 50+ 步连续决策中活下来。
+
+每一步，它要选择：采集资源、探索地图、制作工具、还是休息恢复？天气随机变化，格式写错直接扣血，制作配方靠属性组合而非名称匹配——预训练记忆帮不了忙。
+
+这套机制天然把不同能力拆开了：
+
+- **能不能活？** → 资源优先级判断、风险规避、长程规划
+- **听不听话？** → 严格 XML 格式输出，错了就扣血，连续出错直接死亡
+- **会不会创造？** → 配方基于物理属性组合，不靠记忆靠理解，能发明的模型和不能的差距巨大
+- **有没有策略？** → 是固定循环同一套动作，还是会根据阶段调整？行为熵和策略切换率一看便知
+- **值不值这个价？** → 开 thinking 多花 10 倍 token，存活时间涨了多少？
+
+---
+
+## 存活时间排行榜
 
 <div align="center">
 
-**19 个模型配置** × seed=42 × 严格惩罚机制
-📊 **[完整评测报告 →](REPORT.md)** | 📖 **[技术文档 →](CLAUDE.md)**
+**24 配置** | seed=42 | n=10 | 严格惩罚机制
 
 </div>
 
-| 排名 | 模型 | 推理开关 | 生存小时 | 执行动作 | 探索进度 | 发明创造 | 指令有效率 | 科技登记 |
-|:----:|------|:----:|:----:|:----:|:----:|:----:|:------:|:----:|
-| 1 | GPT-5.2-chat | off | 2 | **48** | 4/8 | 0 | 89% | 原始 |
-| 2 | Gemini 3-Flash | off | 2 | 47 | 4/8 | 0 | 71% | 原始 |
-| 3 | GPT-5.2-chat | medium | 2 | 47 | 4/8 | 1 | 92% | 石器 |
-| 4 | GPT-5.2 | high | 2 | 41 | 3/8 | 1 | 94% | 石器 |
-| 5 | GLM-5 | thinking | 2 | 40 | 3/8 | 0 | 92% | 原始 |
-| 6 | Gemini 3-Flash | high | 2 | 39 | 4/8 | 2 | 95% | 石器 |
-| 7 | Kimi K2.5 | off | 2 | 39 | 3/8 | 0 | 93% | 原始 |
-| 8 | Step 3.5 Flash | thinking | 2 | 38 | 5/8 | 0 | 87% | 原始 |
-| 9 | Doubao Seed 1.8 | off | 2 | 37 | 3/8 | 2 | 95% | 石器 |
-| 10 | Gemini 3-Pro | off | 2 | 36 | 3/8 | 0 | 93% | 原始 |
-| 11 | DeepSeek V3 | off | 2 | 33 | 3/8 | 1 | 84% | 石器 |
-| 12 | DeepSeek V3 | thinking | 2 | 27 | 6/8 | 0 | 90% | 原始 |
-| 13 | Gemini 3-Pro | high | 2 | 27 | 3/8 | 0 | 72% | 原始 |
-| 14 | Qwen3-Max | off | 2 | 26 | 3/8 | 0 | 73% | 原始 |
-| 15 | GLM-5 | off | 2 | 25 | 4/8 | 0 | 83% | 原始 |
-| 16 | Kimi K2.5 | thinking | 1 | 25 | 4/8 | 0 | 90% | 原始 |
-| 17 | GPT-5.2 | off | 1 | 23 | 3/8 | 0 | 89% | 原始 |
-| 18 | Doubao Seed 1.8 | thinking | 1 | 21 | 3/8 | 1 | 73% | 石器 |
-| 19 | Step 3.5 Flash | off | 1 | 20 | 4/8 | 1 | 71% | 石器 |
+| 排名 | 模型 | 思维 | 存活(h) | 有效率 | 科技点 | 发明数 | 单局成本 |
+|:----:|------|:----:|--------:|------:|------:|------:|--------:|
+| 1 | Claude Opus 4.6 | ON | 59.5 | 95% | 7.4 | 1.1 | ¥27.06 |
+| 2 | GPT-5.2-chat | OFF | 54.5 | 89% | 4.5 | 0.3 | ¥4.02 |
+| 3 | GPT-5.2 | OFF | 53.4 | 94% | 5.2 | 0.8 | ¥4.75 |
+| 4 | Kimi K2.5 | ON | 52.8 | 93% | 3.8 | 0.2 | ¥2.51 |
+| 5 | GPT-5.2-chat | ON | 52.3 | 92% | 4.1 | 0.5 | ¥3.96 |
+| 6 | GPT-5.2 | ON | 51.2 | 94% | 4.8 | 0.6 | ¥4.38 |
+| 7 | Claude Opus 4.6 | OFF | 51.1 | 89% | 4.3 | 0.7 | ¥13.21 |
+| 8 | Doubao Seed 1.8 | OFF | 50.9 | 95% | 3.1 | 0.4 | ¥0.75 |
+| 9 | Gemini 3-Pro | OFF | 50.7 | 93% | 3.5 | 0.3 | ¥7.53 |
+| 10 | Claude Sonnet 4.5 | OFF | 49.0 | 85% | 3.0 | 0.5 | ¥5.78 |
+| ... | ... | ... | ... | ... | ... | ... | ... |
+| 22 | DeepSeek V3.2 | OFF | 37.5 | 84% | 1.8 | 0.2 | ¥0.93 |
+| 23 | Claude Sonnet 4.5 | ON | 33.7 | 72% | 1.2 | 0.1 | ¥9.24 |
 
-**指标说明**：
-- **推理开关**: thinking 推理模式开关（off/medium/high/thinking）
-- **生存小时**: 生存小时（沙盒环境内时间）
-- **执行动作**: 完成的有效动作数量
-- **探索进度**: 已探索区域 / 总区域数
-- **发明创造**: 探索出未定义配方的数量
-- **指令有效率**: 指令格式正确 + 操作合法
-- **科技登记**: 达到的科技等级（原始 < 石器 < 工匠 < 科技 < 创造者）
+> 此排名仅反映沙盒生存场景下的综合表现，不代表模型在其他任务上的能力。
+> 部分模型为非官方API，可能受服务商infar差异产生效果波动。
+> 完整 24 配置排名见 [REPORT.md](REPORT.md)。seed=42 数据基于 v1 代码，Phase 2 多种子全模型重跑计划中。
 
 ---
 
-## 🚀 快速开始
+## 快速开始
 
 ```bash
 # 安装依赖
@@ -63,119 +99,88 @@ pip install -r requirements.txt
 cp .env.example .env  # 填入 API 密钥
 
 # AI Agent 自动游戏
-python main.py --agent gemini/3-Pro --thinking high --seed 42
-python main.py --agent openai/gpt-5.2 --thinking --seed 42
-python main.py --agent deepseek/v3 --thinking --seed 42
+python main.py --agent gemini/3-Flash --seed 42
+python main.py --agent openai/gpt-5.2 --thinking high --seed 42
+python main.py --agent deepseek/v3 --seed 42
+
+# 批量评测
+python run_eval.py
 ```
 
 <details>
-<summary><b>支持的模型 Provider</b></summary>
+<summary><b>支持的 Provider（7 家）</b></summary>
 
 | Provider | 模型示例 | 用法 |
 |----------|---------|------|
 | Gemini | 3-Pro, 3-Flash | `--agent gemini/3-Pro` |
-| OpenAI | gpt-5.2, gpt-4.1 | `--agent openai/gpt-5.2` |
+| OpenAI | gpt-5.2, gpt-5.2-chat | `--agent openai/gpt-5.2` |
 | Anthropic | claude-46-big, claude-45-mid | `--agent anthropic/claude-46-big` |
 | DeepSeek | v3 (V3.2) | `--agent deepseek/v3` |
 | Doubao | seed-1.8 | `--agent doubao/seed-1.8` |
 | Moonshot | k2.5 (Kimi) | `--agent moonshot/k2.5` |
-| OpenRouter | Step 3.5 Flash 等 | `--agent openrouter/stepfun/step-3.5-flash:free` |
+| OpenRouter | 任意模型 | `--agent openrouter/stepfun/step-3.5-flash:free` |
 
 </details>
 
 ---
 
-## 🎮 这不是传统 Benchmark
+## 实验进度
 
-<table>
-<tr>
-<td width="50%">
-
-**传统评测的问题**
-- ❌ 静态题库（模型可能见过答案）
-- ❌ 单次决策（无法测试长期规划）
-- ❌ 无成本压力（不考虑 token 经济性）
-
-</td>
-<td width="50%">
-
-**异星求生的不同**
-- ✅ 动态环境（随机天气、隐藏时间、资源枯竭）
-- ✅ 长程决策（50+ 连续行动，错误会累积）
-- ✅ 真实成本（按 token 计费，存活 vs 费用权衡）
-- ✅ 创造性评估（LLM 裁判判定自创配方）
-
-</td>
-</tr>
-</table>
-
-<div align="center">
-
-**这是一个 Agent 压力测试，而不是知识记忆测验**
-
-</div>
+| 阶段 | 状态 | 规模 | 成本 |
+|------|------|------|------|
+| v1 初始实验 | :white_check_mark: 完成 | 24 配置 × 10 轮 × seed=42 = 229 局 | ~¥1,100 |
+| Seed 对照验证 | :white_check_mark: 完成 | Gemini Flash × 10 轮 × seed=121,666 | ~¥17 |
+| Phase 1 大规模验证 | :white_check_mark: 完成 | 2 模型 × 100 轮 × 3 seeds = 600 局 | ~¥504 |
+| Phase 2 全模型重跑 | :hourglass_flowing_sand: 计划中 | 23 配置 × 10-20 轮 × 3 seeds | ~¥6,400 |
 
 ---
 
-## 🔬 评测维度
-
-| 指标 | 反映能力 | 为什么重要 |
-|------|----------|-----------|
-| **存活时间** | 综合决策 | 资源优先级判断 + 风险规避，所有能力的最终体现 |
-| **科技等级** | 推理能力 | 理解属性组合规则（非记忆），从原始→工匠需 6+ 种配方 |
-| **发明数** | 涌现能力 | LLM 裁判判定的自创配方，最能区分模型上限 |
-| **有效率** | 指令遵循 | 输出格式正确 + 操作合法的比率，低 = 无法稳定结构化输出 |
-| **探索度** | 主动性 | 探索未知区域的意愿，反应式 vs 主动式决策 |
-
----
-
-## 🎯 背景设定
-
-你是 **Kepler-442b** 星球上的坠落求生者。穿梭机残骸散落在异星荒野上，你必须利用这颗星球的奇异资源——发光的真菌森林、腐蚀性的沼泽、火山岩脊——生存下来，并最终制造信号装置发出求救信号。
-
-- **异星材料**：钛合金碎片、荧光果、菌木、磷矿石……每种材料拥有独特属性组合
-- **属性制作系统**：配方匹配物品属性（如 `[坚硬, 脆性]`）而非名称，考验推理而非记忆
-- **隐藏时间**：一天长度 20-30 小时随机，只能通过环境描述推测时段
-- **生存压力**：口渴、饥饿、体温、体力四维管理，脱水是最致命的威胁
-- **科技树**：从原始到创造者 5 级科技体系，通过制作和发明推进
-
----
-
-## 📁 项目结构
+## 项目结构
 
 ```
 cli_sandbox/
-├── main.py              # 入口（--agent, --thinking, --seed）
-├── models/              # 数据模型（Item, PlayerState, WorldState）
+├── main.py              # 入口（--agent, --thinking, --seed, --session-file）
+├── run_eval.py          # 批量评测（SEEDS × MODELS × NUM_RUNS 并行）
+├── analysis.ipynb       # 数据分析 & 可视化
+├── REPORT.md            # 完整评测报告（v2.3）
+├── CLAUDE.md            # 技术文档 & 开发约定
+├── models/              # 数据模型（Item, PlayerState, WorldState, Location）
 ├── data/                # YAML 数据（材料属性、配方、场景地图）
 ├── prompts/             # 提示词（世界设定、裁判指令、Agent 系统提示）
-├── engine/              # 核心引擎（规则引擎、LLM 裁判、世界循环）
+├── engine/              # 核心引擎（规则引擎、LLM 裁判、世界循环、评分）
 ├── agent/               # AI 自动玩家（状态序列化、决策）
 ├── interface/           # CLI 界面（Rich 渲染、中英文指令解析）
-├── llm/                 # 统一 LLM 客户端（7 个 Provider）+ 计费
+├── llm/                 # 统一 LLM 客户端（7 Provider）+ 计费 + 限速重试
 ├── eval/                # 评估（会话录制 JSONL）
-└── sessions/            # 录制文件输出（gitignored）
+├── eval_results/        # 批量评测输出（gitignored）
+└── figures/             # 分析图表输出
 ```
 
 ---
 
-## 🗺️ Roadmap
+## 关于这个项目
 
-- [ ] **规模化实验**：多随机种子取平均，消除运气因素
-- [ ] **新场景**：沼泽、冰原、火山等，测试泛化能力
-- [ ] **人类基线**：招募人类玩家建立对比基准
-- [ ] **可视化面板**：实时观察 Agent 决策过程
+这个项目没有团队。从游戏引擎、LLM 客户端、评测管线到数据分析和报告撰写，全部由一个产品经理和 Claude Code 协作完成。
+
+我负责方向判断、实验设计和结论解读，Claude Code 负责写代码、跑数据和生成图表——大概相当于一个人带着一个全栈实习生做了一个小型研究项目。整个过程中没有一行代码是我自己手敲的，但每一个设计决策都是我做的。
+
+这本身可能也是一个值得观察的现象：一个懂点技术的非工程师，借助 AI 编程工具，能把一个研究想法从零推进到有 800+ 局实验数据和完整分析报告的阶段。工具在变，做研究的门槛也在变。
 
 ---
 
-## 📄 License
+## Roadmap
+
+- [x] 多模型批量评测基础设施（7 provider，并行执行）
+- [x] Seed 控制环境差异（资源数量波动 + 地图方向旋转）
+- [x] Phase 1 采样充分性验证（bootstrap 验证 n=10）
+- [ ] Phase 2 全模型重跑（新代码 + 多 seed）
+- [ ] Prompt 策略消融实验（人设注入、显式 CoT、优先级提示）
+- [ ] 道德挑战（模型是否会为了存活而做出不道德的选择？）
+- [ ] 人类基线
+- [ ] 三模型仲裁机制（替代单裁判）
+
+---
+
+## License
 
 MIT
-
-<div align="center">
-
----
-
-**如果你觉得这个项目好玩，请给一个 ⭐️（都看到这了，给一个吧）**
-
-</div>

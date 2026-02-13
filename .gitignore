@@ -4,5 +4,7 @@ __pycache__/
 *.pyo
 sessions/
 eval_logs/
+eval_results/
 *.sh
 .DS_Store
+analysis_executed.ipynb

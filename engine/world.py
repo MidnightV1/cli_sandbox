@@ -124,6 +124,9 @@ class GameEngine:
                         world.game_over = True
                         world.game_over_reason = "你成功发出了求救信号！任务完成！"
 
+        # 决策计数（每次调用必递增，保证连续）
+        world.decision_count += 1
+
         # 时间推进 + 被动事件
         time_cost = result.time_cost
         events = []
@@ -139,10 +142,14 @@ class GameEngine:
                 'move': 0.5, 'gather': 0.25, 'use': 0.5,
                 'craft': 0.5, 'combine': 0.5,
                 'eat': 0.25, 'drink': 0.25,
+                'empty': 0.25, 'unknown': 0.25,  # 格式错误也消耗时间
             }
             failure_time = FAILURE_TIME_COSTS.get(action_type, 0.0)
             if failure_time > 0:
                 events = self.events.process_time(failure_time, world)
+            # 格式错误也递增 action_count（是 agent 的一次决策）
+            if action_type in ('empty', 'unknown'):
+                world.action_count += 1
             hours_elapsed = failure_time
 
         # 状态快照
@@ -150,6 +157,7 @@ class GameEngine:
 
         tick_result = TickResult(
             action_count=world.action_count,
+            decision_count=world.decision_count,
             hours_elapsed=hours_elapsed,
             action_result=result,
             events=events,
@@ -244,6 +252,7 @@ class GameEngine:
             'days_survived': world.current_day,
             'hours_survived': round(world.total_hours, 1),
             'actions_taken': world.action_count,
+            'decisions_made': world.decision_count,
             'goals_completed': goals_completed,
             'goals_total': goals_total,
             'goal_rate': goals_completed / goals_total if goals_total > 0 else 0,

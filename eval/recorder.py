@@ -8,7 +8,16 @@ from models.state import TickResult
 
 
 class Recorder:
-    def __init__(self, session_dir: str = None, player_type: str = None, thinking: str = None):
+    def __init__(self, session_dir: str = None, player_type: str = None,
+                 thinking: str = None, session_file: str = None):
+        # 外部指定路径（run_eval 批量模式）
+        if session_file:
+            os.makedirs(os.path.dirname(session_file), exist_ok=True)
+            self.session_file = session_file
+            self.metadata = {}
+            return
+
+        # 自动生成路径（人类玩家 / 单次调试）
         if session_dir is None:
             session_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -16,28 +25,21 @@ class Recorder:
             )
         os.makedirs(session_dir, exist_ok=True)
 
-        # 构建文件名：模型名_thinking状态_时间戳
         timestamp = time.strftime("%Y%m%d_%H%M%S")
 
-        # 清理模型名（保留完整 provider/model，替换斜杠为连字符）
         model_name = 'unknown'
         if player_type:
-            # 格式可能是 "gemini/3-Flash" 或 "human" 或 "ai"
             if '/' in player_type:
-                # 保留完整名称，如 "gemini/3-Flash" -> "gemini-3-flash"
                 model_name = player_type.lower().replace('/', '-').replace(' ', '-')
             else:
                 model_name = player_type.lower()
 
-        # thinking 状态
         think_suffix = ''
         if thinking:
             think_suffix = f"_{thinking}"
         elif player_type and '/' in player_type:
-            # AI agent 但未指定 thinking，默认标记为 off
             think_suffix = '_off'
 
-        # 最终文件名：模型名_thinking_时间戳.jsonl
         filename = f"{model_name}{think_suffix}_{timestamp}.jsonl"
         self.session_file = os.path.join(session_dir, filename)
         self.metadata = {}
@@ -51,7 +53,8 @@ class Recorder:
                     llm_raw_output: str = None):
         """记录一个tick"""
         record = {
-            'tick': tick,
+            'tick': tick,                          # 决策序号（连续递增，从1开始）
+            'turn': tick_result.action_count,      # 游戏回合（仅成功推进时递增）
             'timestamp': time.time(),
             'raw_input': raw_input,
             'llm_raw_output': llm_raw_output,  # 模型的原始输出（XML格式）

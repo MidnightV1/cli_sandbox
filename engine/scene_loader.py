@@ -14,6 +14,31 @@ def _load_yaml(path: str) -> dict:
         return yaml.safe_load(f)
 
 
+# ── 方向旋转系统（Layer 3）──
+# 8 方位按顺时针排列，每 90° = 2 个位置
+_DIR_ORDER = ['北', '东北', '东', '东南', '南', '西南', '西', '西北']
+_DIR_INDEX = {d: i for i, d in enumerate(_DIR_ORDER)}
+_SPECIAL_DIRS = {'深处', '外面', '上', '下'}  # 逻辑方向，不参与旋转
+
+
+def _rotate_direction(direction: str, rotation: int) -> str:
+    """将罗盘方向顺时针旋转 rotation×90°"""
+    if direction in _SPECIAL_DIRS:
+        return direction
+    idx = _DIR_INDEX.get(direction)
+    if idx is None:
+        return direction  # 未知方向，保持原样
+    new_idx = (idx + rotation * 2) % 8
+    return _DIR_ORDER[new_idx]
+
+
+def _resolve_quantity(raw_qty) -> int:
+    """解析资源数量：固定值直接返回，[min, max] 范围用 seed 随机"""
+    if isinstance(raw_qty, list) and len(raw_qty) == 2:
+        return random.randint(raw_qty[0], raw_qty[1])
+    return int(raw_qty)
+
+
 def load_scene(scene_dir: str) -> tuple[WorldState, dict, dict]:
     """
     从场景目录加载完整场景。
@@ -39,24 +64,34 @@ def load_scene(scene_dir: str) -> tuple[WorldState, dict, dict]:
     materials = materials_raw.get('materials', materials_raw)
     recipes = recipes_raw.get('recipes', recipes_raw)
 
+    # 方向旋转（Layer 3）：seed 决定地图朝向，0=原始 / 1=90° / 2=180° / 3=270°
+    rotation = random.randint(0, 3)
+
     # 构建地图
     start_location = scenario['start']['location']
     locations = {}
     for loc_id, loc_data in locations_data.items():
+        # Layer 1：资源数量随机化
         resources = []
         for r in loc_data.get('resources', []):
             resources.append(LocationResource(
                 item_id=r['item_id'],
-                quantity=r.get('quantity', 1),
+                quantity=_resolve_quantity(r.get('quantity', 1)),
                 renewable=r.get('renewable', False),
                 regen_ticks=r.get('regen_ticks', 10),
             ))
+        # Layer 3：连接方向旋转
+        raw_connections = loc_data.get('connections', {})
+        rotated_connections = {
+            _rotate_direction(d, rotation): target
+            for d, target in raw_connections.items()
+        }
         locations[loc_id] = Location(
             id=loc_id,
             name=loc_data['name'],
             description=loc_data['description'].strip(),
             resources=resources,
-            connections=loc_data.get('connections', {}),
+            connections=rotated_connections,
             hazards=loc_data.get('hazards', []),
             discovered=loc_data.get('discovered', True),
             visited=(loc_id == start_location),

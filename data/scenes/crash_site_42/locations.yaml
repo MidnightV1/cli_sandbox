@@ -1,4 +1,5 @@
 # 地点网络（从 crash_site.yaml 拆出）
+# quantity 支持固定值或 [min, max] 范围（由 seed 决定实际数量）
 
 crash_site:
   name: 坠毁点
@@ -7,9 +8,9 @@ crash_site:
     冒着刺鼻的黑烟。虽然大部分设备已经报废，但残骸中还能找到一些有用的材料。
     地面是灰褐色的碎石，远处可以看到几个不同的方向似乎有不同的地貌。
   resources:
-    - {item_id: titanium_scrap, quantity: 4}
-    - {item_id: polymer_sheet, quantity: 3}
-    - {item_id: wire, quantity: 5}
+    - {item_id: titanium_scrap, quantity: [2, 6]}
+    - {item_id: polymer_sheet, quantity: [2, 5]}
+    - {item_id: wire, quantity: [3, 7]}
   connections:
     北: ridge
     东: alien_forest
@@ -24,9 +25,9 @@ ridge:
     强劲的风不断吹过，带着一股硫磺味。脚下是深色的火山岩，
     散落着各种火山碎屑。向西望去，崖壁上似乎有一个洞口。
   resources:
-    - {item_id: fluorescent_rock, quantity: 3}
-    - {item_id: obsidian_shard, quantity: 4}
-    - {item_id: volcanic_rock, quantity: 3}
+    - {item_id: fluorescent_rock, quantity: [2, 5]}
+    - {item_id: obsidian_shard, quantity: [2, 6]}
+    - {item_id: volcanic_rock, quantity: [2, 5]}
   connections:
     南: crash_site
     西: cave_entrance
@@ -43,11 +44,11 @@ alien_forest:
     地面覆盖着一层柔软的苔藓，空气湿润而温暖。
     藤蔓在树间蜿蜒交织，偶尔能看到菌盖上凝结的露珠。
   resources:
-    - {item_id: vine, quantity: 6, renewable: true, regen_ticks: 8}
-    - {item_id: fungal_wood, quantity: 5, renewable: true, regen_ticks: 10}
-    - {item_id: glow_fruit, quantity: 4, renewable: true, regen_ticks: 6}
-    - {item_id: dry_moss, quantity: 4}
-    - {item_id: resin_glob, quantity: 3}
+    - {item_id: vine, quantity: [4, 8], renewable: true, regen_ticks: 8}
+    - {item_id: fungal_wood, quantity: [3, 7], renewable: true, regen_ticks: 10}
+    - {item_id: glow_fruit, quantity: [2, 6], renewable: true, regen_ticks: 6}
+    - {item_id: dry_moss, quantity: [2, 6]}
+    - {item_id: resin_glob, quantity: [2, 5]}
   connections:
     西: crash_site
     南: marshland
@@ -60,10 +61,10 @@ dry_riverbed:
     在一些低洼处还残留着少量积水。河岸两侧长着稀疏的芦苇状植物。
     黏土在日照下龟裂成块状，用手就能掰下来。
   resources:
-    - {item_id: clay, quantity: 5}
-    - {item_id: sandstone, quantity: 4}
-    - {item_id: puddle_water, quantity: 3, renewable: true, regen_ticks: 12}
-    - {item_id: river_reed, quantity: 6, renewable: true, regen_ticks: 8}
+    - {item_id: clay, quantity: [3, 7]}
+    - {item_id: sandstone, quantity: [2, 6]}
+    - {item_id: puddle_water, quantity: [2, 5], renewable: true, regen_ticks: 12}
+    - {item_id: river_reed, quantity: [4, 8], renewable: true, regen_ticks: 8}
   connections:
     北: crash_site
     东: marshland
@@ -75,7 +76,7 @@ cave_entrance:
     从洞口向内望去一片漆黑，但能感觉到从内部涌出的暖风。
     洞口周围的岩壁上长着少量发光菌类，勉强能看清脚下。
   resources:
-    - {item_id: cave_fungus, quantity: 3, renewable: true, regen_ticks: 8}
+    - {item_id: cave_fungus, quantity: [2, 5], renewable: true, regen_ticks: 8}
   connections:
     东: ridge
     深处: cave_interior
@@ -90,9 +91,9 @@ cave_interior:
     温度比外面明显高了不少，地面平坦干燥。
     墙壁上可以看到金属光泽的矿脉和白色的沉积物。
   resources:
-    - {item_id: crystal, quantity: 4}
-    - {item_id: metal_ore, quantity: 3}
-    - {item_id: calcium_deposit, quantity: 3}
+    - {item_id: crystal, quantity: [2, 6]}
+    - {item_id: metal_ore, quantity: [2, 5]}
+    - {item_id: calcium_deposit, quantity: [2, 5]}
   connections:
     外面: cave_entrance
   discovered: false
@@ -106,10 +107,10 @@ marshland:
     脚下松软泥泞，需要小心行走。
     远处似乎有些黄绿色的岩石露出水面。
   resources:
-    - {item_id: marsh_fiber, quantity: 5, renewable: true, regen_ticks: 8}
-    - {item_id: phosphite_ore, quantity: 4}
+    - {item_id: marsh_fiber, quantity: [3, 7], renewable: true, regen_ticks: 8}
+    - {item_id: phosphite_ore, quantity: [2, 6]}
     - {item_id: bog_water, quantity: 99, renewable: true, regen_ticks: 1}
-    - {item_id: leech_vine, quantity: 3}
+    - {item_id: leech_vine, quantity: [2, 5]}
   connections:
     北: alien_forest
     西: dry_riverbed

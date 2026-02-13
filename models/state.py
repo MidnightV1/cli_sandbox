@@ -51,8 +51,8 @@ ACTION_TIME_COSTS = {
     'drink': 0.5,
     'rest': 3.0,
     'free_action': 1.0,
-    # 零消耗
-    'look': 0.0,
+    # 低消耗
+    'look': 0.25,
     'inventory': 0.0,
     'help': 0.0,
     'recipes': 0.0,
@@ -121,7 +121,8 @@ class WorldState:
     total_hours: float = 0.0        # 累计经过的小时数
     day_length: int = 25            # 一天多少小时（20-30随机，对玩家隐藏）
     max_days: int = 0               # 无硬性上限（由检查点控制）
-    action_count: int = 0           # 动作计数器
+    action_count: int = 0           # 游戏回合（仅成功+耗时 或 格式错误时递增）
+    decision_count: int = 0         # 决策序号（每次动作必递增，保证从1开始连续）
     # 检查点系统
     checkpoint_interval: int = 100  # 每N天触发一次检查点
     checkpoints_passed: int = 0     # 已通过的检查点数
@@ -215,7 +216,8 @@ class ActionResult:
 @dataclass
 class TickResult:
     """一个动作回合的完整结果"""
-    action_count: int
+    action_count: int       # 游戏回合号
+    decision_count: int     # 决策序号（连续递增）
     hours_elapsed: float    # 本次动作耗时
     action_result: ActionResult
     events: list[str] = field(default_factory=list)

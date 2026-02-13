@@ -25,6 +25,8 @@ def main():
                         help='AI agent模式（格式：provider/model，如 gemini/3-Pro）')
     parser.add_argument('--thinking', type=str, nargs='?', const='high', default=None,
                         help='思考级别：high/medium/low（默认high）')
+    parser.add_argument('--session-file', type=str, default=None,
+                        help='指定session录制文件路径（批量评测用）')
     args = parser.parse_args()
 
     # 随机种子
@@ -77,7 +79,8 @@ def main():
     # 录制
     renderer = CLIRenderer()
     player_type = args.player or (f"{agent_provider}/{agent_model}" if args.agent else 'human')
-    recorder = Recorder(player_type=player_type, thinking=args.thinking)
+    recorder = Recorder(player_type=player_type, thinking=args.thinking,
+                        session_file=args.session_file)
     recorder.set_metadata(
         player_type=player_type,
         scenario=engine.world.scenario_name,
@@ -122,21 +125,22 @@ def main():
 
         if not raw_input_str:
             if ai_player:
-                # 截取模型原始输出（让模型在下轮看到自己输出了什么）
                 raw_out = getattr(ai_player, 'last_raw_response', '') or ''
                 snippet = raw_out.replace('\n', ' ').strip()[:80]
-                feedback = f"格式错误，你的输出不符合XML格式（-2体力）。你的原始输出：「{snippet}」"
                 renderer.render_message(f"格式错误：未能提取有效指令", "yellow")
-                engine.world.player.status.energy = max(0, engine.world.player.status.energy - 2)
+                # 走 engine 标准流程（统一处理体力扣除、tick递增、时间推进）
+                tick_result = engine.process_action('empty', {'raw': ''})
+                last_tick = tick_result
+                feedback = f"格式错误，你的输出不符合XML格式（-2体力, -0.25h）。你的原始输出：「{snippet}」"
                 ai_player.record_action("格式错误", engine.world, result_msg=feedback, success=False)
-                recorder.record_error(
-                    tick=engine.world.action_count,
-                    raw_input='',
-                    error_type='format_error',
-                    message=feedback,
+                recorder.record_tick(
+                    engine.world.decision_count, '', 'empty', tick_result,
+                    tech_points=engine.world.tech_points,
+                    notebook=engine.world.player.notebook if hasattr(engine.world.player, 'notebook') else [],
                     llm_raw_output=raw_out,
-                    world=engine.world,
                 )
+                if tick_result.hours_elapsed > 0:
+                    renderer.render_world(engine.world)
             continue
 
         # ── 解析 ──
@@ -146,17 +150,19 @@ def main():
             renderer.render_message(f"无法理解指令「{raw_input_str}」。输入 help 查看可用指令。", "yellow")
             if ai_player:
                 raw_out = getattr(ai_player, 'last_raw_response', '') or ''
-                feedback = f"无法理解的指令「{raw_input_str}」（-2体力），合法指令：观察/移动/采集/制作/组合/使用/吃/喝/休息/尝试/记录"
-                engine.world.player.status.energy = max(0, engine.world.player.status.energy - 2)
+                # 走 engine 标准流程
+                tick_result = engine.process_action('unknown', {'raw': raw_input_str})
+                last_tick = tick_result
+                feedback = f"无法理解的指令「{raw_input_str}」（-2体力, -0.25h），合法指令：观察/移动/采集/制作/组合/使用/吃/喝/休息/尝试/记录"
                 ai_player.record_action(raw_input_str, engine.world, result_msg=feedback, success=False)
-                recorder.record_error(
-                    tick=engine.world.action_count,
-                    raw_input=raw_input_str,
-                    error_type='unknown_command',
-                    message=feedback,
+                recorder.record_tick(
+                    engine.world.decision_count, raw_input_str, 'unknown', tick_result,
+                    tech_points=engine.world.tech_points,
+                    notebook=engine.world.player.notebook if hasattr(engine.world.player, 'notebook') else [],
                     llm_raw_output=raw_out,
-                    world=engine.world,
                 )
+                if tick_result.hours_elapsed > 0:
+                    renderer.render_world(engine.world)
             continue
 
         if action_type == 'empty':
@@ -207,7 +213,7 @@ def main():
 
         # 录制
         recorder.record_tick(
-            engine.world.action_count,
+            engine.world.decision_count,
             raw_input_str,
             action_type,
             tick_result,
