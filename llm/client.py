@@ -41,6 +41,11 @@ PRICING = {
     'qwen3-max': {'input': 2.5, 'output': 10, 'cny': True},
     'qwen3.5-plus': {'input': 0.8, 'output': 4.8, 'cny': True},
     'qwen3.5-397b': {'input': 0.8, 'output': 4.8, 'cny': True},  # 开源版，与 plus 同价
+    # Longcat (美团) —— 价格暂设 0
+    'flash-chat':          {'input': 0, 'output': 0, 'cny': True},
+    'flash-thinking':      {'input': 0, 'output': 0, 'cny': True},
+    'flash-thinking-2601': {'input': 0, 'output': 0, 'cny': True},
+    'flash-lite':          {'input': 0, 'output': 0, 'cny': True},
 }
 
 # OpenRouter 价格缓存（内存级，进程结束即释放）
@@ -150,6 +155,12 @@ class LLMClient:
             'qwen3.5-plus': 'qwen3.5-plus',
             'qwen3.5-397b': 'qwen3.5-397b-a17b',
         },
+        'longcat': {
+            'flash-chat':          'LongCat-Flash-Chat',
+            'flash-thinking':      'LongCat-Flash-Thinking',
+            'flash-thinking-2601': 'LongCat-Flash-Thinking-2601',
+            'flash-lite':          'LongCat-Flash-Lite',
+        },
     }
 
     def __init__(self):
@@ -180,6 +191,8 @@ class LLMClient:
             result = self._call_qwen(system_prompt, user_prompt, model, temperature, thinking)
         elif provider == 'openrouter':
             result = self._call_openrouter(system_prompt, user_prompt, model, temperature, thinking)
+        elif provider == 'longcat':
+            result = self._call_longcat(system_prompt, user_prompt, model, temperature, thinking)
         else:
             raise ValueError(f"未知的LLM提供商：{provider}")
 
@@ -636,3 +649,52 @@ class LLMClient:
                     raise
                 wait = 2 ** attempt + 1  # 2, 3, 5, 9, 17s
                 _time.sleep(wait)
+
+    def _call_longcat(self, system_prompt, user_prompt, model_name, temperature, thinking=False):
+        from openai import OpenAI
+        if 'longcat' not in self._clients:
+            api_key = os.getenv('LONGCAT_API_KEY')
+            if not api_key:
+                raise ValueError("缺少 LONGCAT_API_KEY 环境变量")
+            self._clients['longcat'] = OpenAI(
+                api_key=api_key,
+                base_url="https://api.longcat.chat/openai",
+            )
+
+        client = self._clients['longcat']
+        model_id = self.PROVIDER_MODELS['longcat'].get(model_name, model_name)
+
+        extra = {}
+        if thinking:
+            extra['extra_body'] = {"enable_thinking": True}
+
+        response = client.chat.completions.create(
+            model=model_id,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=temperature if not thinking else None,
+            max_tokens=8192,
+            **extra,
+        )
+
+        msg = response.choices[0].message
+        content = msg.content or ''
+
+        # 提取 thinking：先尝试 reasoning_content，再尝试 <think> 标签
+        thinking_text = getattr(msg, 'reasoning_content', '') or ''
+        if not thinking_text and '<think>' in content and '</think>' in content:
+            import re
+            m = re.search(r'<think>(.*?)</think>', content, re.DOTALL)
+            if m:
+                thinking_text = m.group(1).strip()
+                content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
+
+        return {
+            'model': model_name,
+            'content': content,
+            'thinking': thinking_text,
+            'input_tokens': response.usage.prompt_tokens,
+            'output_tokens': response.usage.completion_tokens,
+        }

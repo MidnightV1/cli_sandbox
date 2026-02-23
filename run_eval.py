@@ -24,6 +24,7 @@ PROVIDER_PARALLEL = {
     'moonshot':   20,
     'qwen':       20,
     'openrouter':  5,  # 50 RPM 限制
+    'longcat':     5,  # 初始保守并发，待确认限速策略
 }
 
 # 模型列表：每项为 (provider/model, thinking, player_tag)
@@ -46,6 +47,10 @@ MODELS = [
     # ── 新增：Gemini 3.1 Pro ON/OFF ──
     ("gemini/3.1-Pro",       "high", "gemini_31_pro_on"),
     ("gemini/3.1-Pro",       None,   "gemini_31_pro_off"),
+
+    # ── 新增：美团龙猫 ON/OFF ──
+    ("longcat/flash-thinking", "high", "longcat_flash_on"),
+    ("longcat/flash-chat",     None,   "longcat_flash_off"),
 ]
 
 # ╔══════════════════════════════════════════════════════════════╗
