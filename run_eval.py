@@ -12,78 +12,40 @@ from pathlib import Path
 # ║                    评测配置（改这里）                         ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-SEEDS = [7, 233, 999]        # Phase 1 新 seeds（与已有 121/666 交叉对比）
-NUM_RUNS = 100               # Phase 1: 大规模验证（验证 n=10 的采样充分性）
-MAX_PARALLEL = 50            # 全局最大并行数
+SEEDS = [217]                # 全量评测 seed
+NUM_RUNS = 10                # 第一轮 10 轮，胶着区补跑 10 轮
+MAX_PARALLEL = 25            # 官方API 20 + OpenRouter 5
 
-# 限速 provider 的最大并发数（provider 前缀匹配）
-# OpenRouter 免费模型限 50 RPM，每局 ~35 次请求，5 并发 ≈ 40 RPM
+# 各 provider 最大并发数
 PROVIDER_PARALLEL = {
-    'openrouter': 5,
+    'gemini':     20,
+    'doubao':     20,
+    'deepseek':   20,
+    'moonshot':   20,
+    'qwen':       20,
+    'openrouter':  5,  # 50 RPM 限制
 }
 
 # 模型列表：每项为 (provider/model, thinking, player_tag)
 # thinking: None=关闭, "high"/"medium"/"low"=对应级别
 MODELS = [
-    # ═══ Phase 1：大规模采样验证（3个便宜模型 × 100轮 × 2seeds） ═══
+    # ── 重跑：thinking 异常的 ON 配置（OpenRouter reasoning 提取已修复）──
+    ("openrouter/anthropic/claude-opus-4.6",        "high", "claude_opus_on"),
+    ("openrouter/anthropic/claude-sonnet-4.5",      "high", "claude_sonnet_on"),
+    ("openrouter/openai/gpt-5.2",                  "high", "gpt52_on"),
+    ("openrouter/stepfun/step-3.5-flash:free",     "high", "step_35_flash_on"),
 
-    # ── Gemini (官方API) ──
-    ("gemini/3-Flash",       None,   "gemini_3_flash_off"),
+    # ── 重跑：Gemini 3 thinking 现已支持 ──
+    ("gemini/3-Pro",         "high", "gemini_3_pro_on"),
+    ("gemini/3-Flash",       "high", "gemini_3_flash_on"),
 
-    # ── Doubao (官方API) ──
-    ("doubao/seed-1.8",      None,   "doubao_v18_off"),
+    # ── 重跑：Claude Sonnet 4.6 ON/OFF ──
+    ("openrouter/anthropic/claude-sonnet-4.6",      "high", "claude_sonnet46_on"),
+    ("openrouter/anthropic/claude-sonnet-4.6",      None,   "claude_sonnet46_off"),
 
-    # ── Step (OpenRouter) ──  暂停：免费版 50 RPM 限速
-    # ("openrouter/stepfun/step-3.5-flash:free",   None,   "step_35_flash_off"),
-
-    # ═══ Phase 2：全模型对比（等 Phase 1 验证后再启用） ═══
-
-    # ── Gemini (官方API) ──
-    # ("gemini/3-Pro",         "high", "gemini_3_pro_high"),
-    # ("gemini/3-Pro",         None,   "gemini_3_pro_off"),
-    # ("gemini/3-Flash",       "high", "gemini_3_flash_high"),
-
-    # ── Claude (官方API) ──
-    # ("anthropic/claude-46-big",  "high", "claude_opus_on"),
-    # ("anthropic/claude-46-big",  None,   "claude_opus_off"),
-    # ("anthropic/claude-45-mid",  "high", "claude_sonnet_on"),
-    # ("anthropic/claude-45-mid",  None,   "claude_sonnet_off"),
-
-    # ── Claude (OpenRouter) ──
-    # ("openrouter/anthropic/claude-opus-4.6",    "high", "claude_opus_on"),
-    # ("openrouter/anthropic/claude-opus-4.6",    None,   "claude_opus_off"),
-    # ("openrouter/anthropic/claude-sonnet-4.5",  "high", "claude_sonnet_on"),
-    # ("openrouter/anthropic/claude-sonnet-4.5",  None,   "claude_sonnet_off"),
-
-    # ── GPT (官方API) ──
-    # ("openai/gpt-5.2",       "high",   "gpt52_on"),
-    # ("openai/gpt-5.2",       None,     "gpt52_off"),
-    # ("openai/gpt-5.2-chat",  "medium", "gpt52_chat_on"),
-    # ("openai/gpt-5.2-chat",  None,     "gpt52_chat_off"),
-
-    # ── GPT (OpenRouter) ──
-    # ("openrouter/openai/gpt-5.2",       "high",   "gpt52_on"),
-    # ("openrouter/openai/gpt-5.2",       None,     "gpt52_off"),
-    # ("openrouter/openai/gpt-5.2-chat",  "medium", "gpt52_chat_on"),
-    # ("openrouter/openai/gpt-5.2-chat",  None,     "gpt52_chat_off"),
-
-    # ── DeepSeek (官方API) ──
-    # ("deepseek/v3",          "high", "deepseek_v32_on"),
-    # ("deepseek/v3",          None,   "deepseek_v32_off"),
-
-    # ── Doubao (官方API) ──
-    # ("doubao/seed-1.8",      "high", "doubao_v18_on"),
-
-    # ── Kimi (官方API) ──
-    # ("moonshot/k2.5",        "high", "kimi_25_on"),
-    # ("moonshot/k2.5",        None,   "kimi_25_off"),
-
-    # ── OpenRouter 渠道 ──
-    # ("openrouter/z-ai/glm-5",                    "high", "glm_5_on"),
-    # ("openrouter/z-ai/glm-5",                    None,   "glm_5_off"),
-    # ("openrouter/qwen/qwen3-max-thinking",       "high", "qwen3_max_on"),
-    # ("openrouter/qwen/qwen3-max-thinking",       None,   "qwen3_max_off"),
-    # ("openrouter/stepfun/step-3.5-flash:free",   "high", "step_35_flash_on"),
+    # ── 新增：Gemini 3.1 Pro ON/OFF ──
+    ("gemini/3.1-Pro",       "high", "gemini_31_pro_on"),
+    ("gemini/3.1-Pro",       None,   "gemini_31_pro_off"),
 ]
 
 # ╔══════════════════════════════════════════════════════════════╗

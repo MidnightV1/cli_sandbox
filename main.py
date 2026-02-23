@@ -25,6 +25,9 @@ def main():
                         help='AI agent模式（格式：provider/model，如 gemini/3-Pro）')
     parser.add_argument('--thinking', type=str, nargs='?', const='high', default=None,
                         help='思考级别：high/medium/low（默认high）')
+    parser.add_argument('--random-agent', type=str, nargs='?', const='random',
+                        metavar='MODE', dest='random_agent',
+                        help='随机基准模式：random（纯随机）或 reactive（最小规则基线）')
     parser.add_argument('--session-file', type=str, default=None,
                         help='指定session录制文件路径（批量评测用）')
     args = parser.parse_args()
@@ -43,9 +46,9 @@ def main():
             sys.exit(1)
         agent_provider, agent_model = parts
 
-    # LLM客户端（agent模式强制启用）
+    # LLM客户端（agent模式强制启用，random-agent 模式不需要）
     llm_client = None
-    if not args.no_llm or args.agent:
+    if not args.no_llm or (args.agent and not args.random_agent):
         try:
             from llm.client import LLMClient
             llm_client = LLMClient()
@@ -67,7 +70,14 @@ def main():
 
     # AI玩家
     ai_player = None
-    if args.agent and llm_client:
+    if args.random_agent:
+        from agent.random_player import RandomPlayer
+        ai_player = RandomPlayer(
+            materials_db=engine.materials,
+            recipes_db=engine.recipes,
+            mode=args.random_agent,
+        )
+    elif args.agent and llm_client:
         from agent.player import AIPlayer
         ai_player = AIPlayer(
             llm_client, agent_provider, agent_model,
@@ -78,7 +88,11 @@ def main():
 
     # 录制
     renderer = CLIRenderer()
-    player_type = args.player or (f"{agent_provider}/{agent_model}" if args.agent else 'human')
+    player_type = args.player or (
+        f"random/{args.random_agent}" if args.random_agent
+        else f"{agent_provider}/{agent_model}" if args.agent
+        else 'human'
+    )
     recorder = Recorder(player_type=player_type, thinking=args.thinking,
                         session_file=args.session_file)
     recorder.set_metadata(
@@ -89,6 +103,10 @@ def main():
     )
 
     # 开场
+    renderer.render_message(
+        f"[{_time.strftime('%Y-%m-%d %H:%M:%S')}] seed={args.seed}",
+        "dim"
+    )
     renderer.render_intro(engine.world)
     renderer.render_world(engine.world)
 
@@ -111,6 +129,10 @@ def main():
             except Exception as e:
                 renderer.render_message(f"[Agent异常] {e}", "red")
                 raise  # 直接抛出异常，不兜底
+            # 打印思考过程（如有）
+            thinking_text = getattr(ai_player, 'last_thinking', '')
+            if thinking_text:
+                renderer.render_message(f"[思考] {thinking_text}", "dim")
             renderer.render_message(f"\n[AI] {raw_input_str}", "bold blue")
             _time.sleep(0.2)
         else:
@@ -138,6 +160,7 @@ def main():
                     tech_points=engine.world.tech_points,
                     notebook=engine.world.player.notebook if hasattr(engine.world.player, 'notebook') else [],
                     llm_raw_output=raw_out,
+                    thinking=getattr(ai_player, 'last_thinking', ''),
                 )
                 if tick_result.hours_elapsed > 0:
                     renderer.render_world(engine.world)
@@ -160,6 +183,7 @@ def main():
                     tech_points=engine.world.tech_points,
                     notebook=engine.world.player.notebook if hasattr(engine.world.player, 'notebook') else [],
                     llm_raw_output=raw_out,
+                    thinking=getattr(ai_player, 'last_thinking', ''),
                 )
                 if tick_result.hours_elapsed > 0:
                     renderer.render_world(engine.world)
@@ -220,6 +244,7 @@ def main():
             tech_points=engine.world.tech_points,
             notebook=engine.world.player.notebook if hasattr(engine.world.player, 'notebook') else [],
             llm_raw_output=ai_player.last_raw_response if ai_player and hasattr(ai_player, 'last_raw_response') else None,
+            thinking=ai_player.last_thinking if ai_player and hasattr(ai_player, 'last_thinking') else None,
         )
 
         # 状态栏（消耗时间的成功动作才刷新）

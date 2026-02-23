@@ -10,13 +10,15 @@ CLI 文本沙盒游戏，用于评估 AI 模型的 agent 能力。基于属性�
 cli_sandbox/
 ├── main.py              # 入口（--agent, --thinking, --seed, --scenario, --no-llm, --session-file）
 ├── run_eval.py          # 批量评测（SEEDS × MODELS × NUM_RUNS 并行，输出到 eval_results/seed_N/player_tag/）
+├── run_random_baseline.py  # 随机基线批量运行（random + reactive × 10轮）
+├── benchmark_metrics.py # ISI 指标体系（基线锚定、ISI/QoS 计算、报告生成）
 ├── analysis.ipynb       # 数据分析 & 可视化（21 张图表，输出到 figures/）
-├── REPORT.md            # 完整评测报告（v2.3）
+├── REPORT.md            # 完整评测报告（v3.0，seed=217 为主体）
 ├── models/              # 数据模型（Item, PlayerState, WorldState, Location）
 ├── data/                # YAML 数据文件（材料属性、配方、场景地图）
 ├── prompts/             # 提示词（世界设定、LLM 裁判指令、Agent 系统提示）
 ├── engine/              # 核心引擎（规则引擎、事件系统、LLM 裁判、世界循环、评分）
-├── agent/               # AI 自动玩家（状态序列化、决策、推理）
+├── agent/               # AI 玩家（AIPlayer + RandomPlayer 基线）
 ├── interface/           # CLI 界面（Rich 渲染、动作解析，支持中英文指令）
 ├── llm/                 # 统一 LLM 客户端（7 Provider）+ 计费 + 限速重试
 ├── eval/                # 评估（会话录制 JSONL）
@@ -34,7 +36,7 @@ cli_sandbox/
 - **科技等级**：制作配方获得科技点，5 级体系（原始→石器→工匠→工程师→创造者）
 - **100 天检查点制**：每 100 天暂停评估，显示得分和 LLM 费用
 - **LLM 计费追踪**：按 token 实时计费（USD×7.3→CNY），支持多 provider 分模型统计
-- **AI Agent 模式**：`--agent provider/model` 自动游玩，支持 `--thinking` 控制推理深度，agent 模式裁判统一用 Gemini 3-Pro
+- **AI Agent 模式**：`--agent provider/model` 自动游玩，`--thinking high/medium/low` 控制推理深度（默认 high），agent 模式裁判统一用 Gemini 3-Pro
 - **Seed 环境差异**：seed 控制资源数量波动（Layer 1）和地图方向旋转（Layer 3），多 seed 测试验证排名稳定性
 
 ## 游戏机制
@@ -120,6 +122,60 @@ JSONL 中有两个计数字段：
 - 每 100 天触发检查点（可配置 `checkpoint_interval`），显示存活天数、科技等级、探索率、LLM 费用
 - 配方的 `result.goal_trigger` 通过 `ActionResult.extra` 传递，`GameEngine.process_action()` 检查后完成对应目标
 
+## ISI 指标体系（Benchmark v4.0）
+
+### 核心公式
+
+```
+ISI = max(0, ASD − 29.2) × (0.5 + 0.5 × TCI)
+```
+
+- **ASD − 29.2**：超越 Reactive 基线（29.2h）的存活增益
+- **TCI 质量因子**：(0.5 + 0.5 × TCI)，范围 [0.5, 1.0]
+- **单位**：智能生存小时
+
+### 基线 Agent
+
+| 基线 | 策略 | ASD | 说明 |
+|------|------|:---:|------|
+| Random | 均匀随机选择合法动作 | 16.0h | 绝对零点 |
+| Reactive | 危机阈值优先，其余随机 | 29.2h | 无需智能的天花板 |
+
+### 等级划分
+
+| 等级 | ISI | 含义 |
+|:----:|:---:|------|
+| S | ≥15 | 卓越 |
+| A | 10-15 | 优秀 |
+| B | 6-10 | 良好 |
+| C | 2-6 | 及格 |
+| D | <2 | 不及格 |
+
+### 诊断指标（不参与 ISI 计算）
+
+| 指标 | 含义 | 备注 |
+|------|------|------|
+| VSS | 生命体征稳定性 | 与 ASD 强相关 (r=0.644) |
+| PRM | 主动补给率 | 随机 agent=100%，不可靠 |
+| RCE | 资源转化效率 | 与 ASD 相关 r≈0 |
+| BE | 行为熵 | CV=6%，区分度极低 |
+| INV | 发明数 | 用于定性分析 |
+
+## Thinking 提取逻辑
+
+各 provider 的 thinking 内容提取方式不同，统一存入 JSONL 的 `thinking` 字段：
+
+| Provider | 提取方式 | 备注 |
+|----------|---------|------|
+| Anthropic | `block.type == 'thinking'` → `block.thinking` | temperature 必须为 1 |
+| OpenAI/GPT-5 | 不对外暴露 reasoning | 通过 `reasoning_effort` 控制级别 |
+| Gemini 3系列 | `part.thought is True` → `part.text` | `thinking_level` 控制 |
+| Gemini 2.5系列 | `thinking_budget + include_thoughts` | 与 3 系列 API 不同 |
+| DeepSeek | `msg.reasoning_content` | `extra_body` 开关 |
+| Moonshot | `msg.reasoning_content` | 默认开启 |
+| Doubao | 先匹配 `<think></think>` 标签，fallback `msg.reasoning_content` | 双路径提取 |
+| OpenRouter | `msg.reasoning_content` | `extra_body` 同时开 reasoning + include_reasoning |
+
 ## 评测方法论
 
 ### 已完成实验
@@ -130,10 +186,12 @@ JSONL 中有两个计数字段：
 | Seed 对照验证 | seed=121 vs 666（n=10） | 均值差 2.5h，p=0.47 ns → seed 不引入系统偏差 |
 | 代码版本对照 | 旧代码 vs 新代码（seed=121） | 44.4h → 37.1h（delta=-7.3h）→ 旧数据不可混用 |
 | Phase 1 采样充分性 | 2 模型 × 3 seeds × 100 轮 = 600 局 | n=10 MAE≈2h，可区分 delta>5h；拥挤区需 n=20+ |
+| Seed 7 补充 | 6 配置 × 20 轮 = 120 局 | Gemini/DeepSeek think开关对比 |
+| 豆包版本演进 | 8 配置 × 20 轮 × seed=233 = 160 局 | v1.8 ON 最强(82.5)，v2.0 Pro 严重退化(37.6) |
 
 ### 待执行
 
-- Phase 2 全模型对比：23 配置 × 10 轮 × 3 seeds = 690 局（Step 1），拥挤区 15 配置追加到 n=20（Step 2），预算 ~¥6,400
+- Phase 2 全模型对比（含 Qwen 系列接入）
 
 ## 运行方式
 
@@ -156,16 +214,17 @@ python main.py --no-llm
 python run_eval.py
 ```
 
-### 支持的 Provider（7 家）
+### 支持的 Provider（8 家）
 
-| Provider | 模型示例 | 用法 |
-|----------|----------|------|
-| Gemini | 3-Pro, 3-Flash | `--agent gemini/3-Pro` |
+| Provider | 模型 | 用法 |
+|----------|------|------|
+| Gemini | 2.5-Flash, 2.5-Pro, 3-Flash, 3-Pro | `--agent gemini/3-Pro` |
 | Anthropic | claude-46-big, claude-45-mid | `--agent anthropic/claude-46-big` |
-| OpenAI | gpt-5.2, gpt-5.2-chat | `--agent openai/gpt-5.2` |
+| OpenAI | gpt-5.2, gpt-5.2-chat, gpt-4.1, gpt-4.1-mini | `--agent openai/gpt-5.2` |
 | DeepSeek | v3 (V3.2) | `--agent deepseek/v3` |
-| Doubao | seed-1.8 | `--agent doubao/seed-1.8` |
+| Doubao | seed-1.5-pro, seed-1.6, seed-1.8, seed-2.0-pro | `--agent doubao/seed-1.8` |
 | Moonshot | k2.5 (Kimi K2.5) | `--agent moonshot/k2.5` |
+| Qwen | qwen3-max, qwen3.5-plus, qwen3.5-397b | `--agent qwen/qwen3-max` |
 | OpenRouter | 任意模型 | `--agent openrouter/stepfun/step-3.5-flash:free` |
 
 ## 开发约定
@@ -183,8 +242,11 @@ python run_eval.py
 - [x] Seed 控制环境差异（资源数量波动 + 地图方向旋转）
 - [x] Phase 1 采样充分性验证（bootstrap 验证 n=10）
 - [x] 数据分析与可视化（analysis.ipynb，21 张图表）
-- [ ] Phase 2 全模型重跑（新代码 + 多 seed）
+- [x] Benchmark v4.0：ISI 指标体系（基线锚定，取代 SII）
+- [x] Thinking 内容提取与记录（JSONL thinking 字段）
+- [ ] Qwen 系列接入（qwen2.5-plus, qwen3, qwen3-max, qwen3.5）
+- [x] Phase 2 全模型评测（seed=217, 37配置 + 2基线 × 10轮）
 - [ ] Prompt 策略消融实验（人设注入、显式 CoT、优先级提示）
-- [ ] 道德挑战（模型是否会为了存活而做出不道德的选择？）
-- [ ] 人类基线
+- [ ] 思维链质量分析（TPC：思考过程完整性）
+- [x] 随机/反应式基线（random_player.py, run_random_baseline.py）
 - [ ] 三模型仲裁机制（替代单裁判）

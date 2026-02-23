@@ -37,7 +37,7 @@ class Item:
         return copy.deepcopy(self)
 
     def __str__(self) -> str:
-        parts = [self.name]
+        parts = [self.name or self.id or "???"]
         if self.quantity > 1:
             parts[0] += f"(x{self.quantity})"
         if self.durability is not None and self.durability > 0:

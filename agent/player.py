@@ -146,8 +146,9 @@ class AIPlayer:
             thinking=self.thinking,
         )
 
-        # 保存原始输出用于记录
+        # 保存原始输出和思考过程用于记录
         self.last_raw_response = result['content']
+        self.last_thinking = result.get('thinking', '')
         command = self._extract_command(result['content'])
         return command
 

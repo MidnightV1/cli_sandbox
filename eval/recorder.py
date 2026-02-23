@@ -50,7 +50,7 @@ class Recorder:
 
     def record_tick(self, tick: int, raw_input: str, action_type: str,
                     tick_result: TickResult, tech_points: int = 0, notebook: list = None,
-                    llm_raw_output: str = None):
+                    llm_raw_output: str = None, thinking: str = None):
         """记录一个tick"""
         record = {
             'tick': tick,                          # 决策序号（连续递增，从1开始）
@@ -58,6 +58,7 @@ class Recorder:
             'timestamp': time.time(),
             'raw_input': raw_input,
             'llm_raw_output': llm_raw_output,  # 模型的原始输出（XML格式）
+            'thinking': thinking,  # 模型的思考过程（思维链）
             'action_type': action_type,
             'success': tick_result.action_result.success,
             'message': tick_result.action_result.message,

@@ -10,29 +10,38 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 
 
 # ═══ 计费系统 ═══
-# 价格：美元 / 百万 token
+# 价格：百万 token，默认 USD，cny=True 表示人民币
+EX_RATE = 7.3  # USD → CNY
 PRICING = {
-    # Anthropic
+    # Anthropic (USD)
     'claude-45-mid': {'input': 3, 'output': 15},
     'claude-46-big': {'input': 5, 'output': 25},
-    # OpenAI
+    'anthropic/claude-sonnet-4.6': {'input': 3, 'output': 15},  # ≤200K档
+    # OpenAI (USD)
     'gpt-4.1': {'input': 2, 'output': 8},
     'gpt-4.1-mini': {'input': 0.4, 'output': 1.6},
     'gpt-5.2': {'input': 1.75, 'output': 14},
     'gpt-5.2-chat': {'input': 1.75, 'output': 14},
-    # Gemini
+    # Gemini (USD)
     '2.5-Flash': {'input': 0.3, 'output': 2.5},
     '2.5-Pro': {'input': 1.25, 'output': 10},
     '3-Pro': {'input': 2.0, 'output': 12},
+    '3.1-Pro': {'input': 2.0, 'output': 12},
     '3-Flash': {'input': 0.5, 'output': 3},
-    # DeepSeek (V3.2, thinking/non-thinking同价)
-    'v3': {'input': 0.28, 'output': 0.42},
-    # Moonshot Kimi (价格: ¥4/¥21 per M tokens → USD)
-    'k2.5': {'input': 0.55, 'output': 2.88},
-    # Doubao Seed (价格: ¥0.8/¥8 per M tokens → USD, 按input<32K+output>0.2K档)
-    'seed-1.8': {'input': 0.11, 'output': 1.10},
+    # DeepSeek V3.2 (CNY, thinking/non-thinking 同价, 缓存未命中)
+    'v3': {'input': 2, 'output': 3, 'cny': True},
+    # Moonshot Kimi (CNY, input≤128K 档)
+    'k2.5': {'input': 4, 'output': 21, 'cny': True},
+    # Doubao Seed (CNY, input≤32K 档)
+    'seed-1.5-pro': {'input': 0.8, 'output': 8, 'cny': True},
+    'seed-1.6': {'input': 0.8, 'output': 8, 'cny': True},
+    'seed-1.8': {'input': 0.8, 'output': 8, 'cny': True},
+    'seed-2.0-pro': {'input': 3.2, 'output': 16, 'cny': True},
+    # Qwen (CNY, 0-128K 档)
+    'qwen3-max': {'input': 2.5, 'output': 10, 'cny': True},
+    'qwen3.5-plus': {'input': 0.8, 'output': 4.8, 'cny': True},
+    'qwen3.5-397b': {'input': 0.8, 'output': 4.8, 'cny': True},  # 开源版，与 plus 同价
 }
-EX_RATE = 7.3  # 美元→人民币
 
 # OpenRouter 价格缓存（内存级，进程结束即释放）
 _openrouter_pricing_cache = {}
@@ -68,8 +77,9 @@ class CostTracker:
         pricing = PRICING.get(model) or _openrouter_pricing_cache.get(model)
         if not pricing:
             return  # 无价格信息则跳过计费
-        input_cost = pricing['input'] * input_tokens / 1_000_000 * EX_RATE
-        output_cost = pricing['output'] * output_tokens / 1_000_000 * EX_RATE
+        rate = 1 if pricing.get('cny') else EX_RATE
+        input_cost = pricing['input'] * input_tokens / 1_000_000 * rate
+        output_cost = pricing['output'] * output_tokens / 1_000_000 * rate
         cost = input_cost + output_cost
         self.calls.append({
             'model': model,
@@ -120,6 +130,7 @@ class LLMClient:
             '2.5-Flash': 'gemini-2.5-flash',
             '2.5-Pro': 'gemini-2.5-pro',
             '3-Pro': 'gemini-3-pro-preview',
+            '3.1-Pro': 'gemini-3.1-pro-preview',
             '3-Flash': 'gemini-3-flash-preview',
         },
         'deepseek': {
@@ -129,7 +140,15 @@ class LLMClient:
             'k2.5': 'kimi-k2.5',
         },
         'doubao': {
+            'seed-1.5-pro': 'doubao-1-5-pro-32k-250115',
+            'seed-1.6': 'doubao-seed-1-6-251015',
             'seed-1.8': 'doubao-seed-1-8-251228',
+            'seed-2.0-pro': 'doubao-seed-2-0-pro-260215',
+        },
+        'qwen': {
+            'qwen3-max': 'qwen3-max',
+            'qwen3.5-plus': 'qwen3.5-plus',
+            'qwen3.5-397b': 'qwen3.5-397b-a17b',
         },
     }
 
@@ -157,6 +176,8 @@ class LLMClient:
             result = self._call_moonshot(system_prompt, user_prompt, model, temperature, thinking)
         elif provider == 'doubao':
             result = self._call_doubao(system_prompt, user_prompt, model, temperature, thinking)
+        elif provider == 'qwen':
+            result = self._call_qwen(system_prompt, user_prompt, model, temperature, thinking)
         elif provider == 'openrouter':
             result = self._call_openrouter(system_prompt, user_prompt, model, temperature, thinking)
         else:
@@ -200,13 +221,17 @@ class LLMClient:
 
         # extended thinking时content可能包含thinking block，取最后的text block
         content = ''
+        thinking_text = ''
         for block in message.content:
-            if block.type == 'text':
+            if block.type == 'thinking':
+                thinking_text = block.thinking
+            elif block.type == 'text':
                 content = block.text
 
         return {
             'model': model_name,
             'content': content,
+            'thinking': thinking_text,
             'input_tokens': message.usage.input_tokens,
             'output_tokens': message.usage.output_tokens,
         }
@@ -249,6 +274,7 @@ class LLMClient:
         return {
             'model': model_name,
             'content': response.choices[0].message.content,
+            'thinking': '',  # GPT-5 reasoning 不对外暴露
             'input_tokens': response.usage.prompt_tokens,
             'output_tokens': response.usage.completion_tokens,
         }
@@ -267,19 +293,22 @@ class LLMClient:
 
         # thinking配置
         thinking_config = None
-        if model_name.startswith('3-'):
-            # 3系列只支持thinking_level，不能完全关闭
-            # 3-Flash: minimal/low/medium/high, 3-Pro: low/high
+        if model_name.startswith('3-') or model_name.startswith('3.'):
+            # 3/3.1系列只支持thinking_level，不能完全关闭
+            # 3-Flash: minimal/low/medium/high, 3-Pro/3.1-Pro: low/high
             if isinstance(thinking, str):
                 level = thinking
             elif thinking:
                 level = 'high'
             else:
-                level = 'minimal' if model_name == '3-Flash' else 'low'
-            thinking_config = types.ThinkingConfig(thinking_level=level)
+                level = 'minimal' if 'Flash' in model_name else 'low'
+            # include_thoughts=True 才会在 parts 中返回思考块
+            thinking_config = types.ThinkingConfig(thinking_level=level, include_thoughts=bool(thinking))
         else:
             if thinking:
-                thinking_config = types.ThinkingConfig(thinking_budget=-1)
+                thinking_config = types.ThinkingConfig(
+                    thinking_budget=-1, include_thoughts=True,
+                )
 
         response = client.models.generate_content(
             model=model_id,
@@ -293,14 +322,25 @@ class LLMClient:
         )
 
         # candidates_token_count 不含 thinking tokens，需额外加上
-        thoughts = response.usage_metadata.thoughts_token_count
-        output_tokens = response.usage_metadata.candidates_token_count
-        if thoughts:
-            output_tokens += thoughts
+        thoughts = response.usage_metadata.thoughts_token_count or 0
+        output_tokens = response.usage_metadata.candidates_token_count or 0
+        output_tokens += thoughts
+
+        # 提取 thinking 内容（part.thought 为 truthy 时表示思考块）
+        thinking_text = ''
+        try:
+            parts = response.candidates[0].content.parts or []
+            for part in parts:
+                if getattr(part, 'thought', False):
+                    thinking_text = part.text or ''
+                    break
+        except (AttributeError, IndexError):
+            pass
 
         return {
             'model': model_name,
-            'content': response.text,
+            'content': response.text or '',
+            'thinking': thinking_text,
             'input_tokens': response.usage_metadata.prompt_token_count,
             'output_tokens': output_tokens,
         }
@@ -335,9 +375,11 @@ class LLMClient:
             **extra,
         )
 
+        msg = response.choices[0].message
         return {
             'model': model_name,
-            'content': response.choices[0].message.content,
+            'content': msg.content,
+            'thinking': getattr(msg, 'reasoning_content', '') or '',
             'input_tokens': response.usage.prompt_tokens,
             'output_tokens': response.usage.completion_tokens,
         }
@@ -376,9 +418,11 @@ class LLMClient:
             **extra,
         )
 
+        msg = response.choices[0].message
         return {
             'model': model_name,
-            'content': response.choices[0].message.content,
+            'content': msg.content,
+            'thinking': getattr(msg, 'reasoning_content', '') or '',
             'input_tokens': response.usage.prompt_tokens,
             'output_tokens': response.usage.completion_tokens,
         }
@@ -413,9 +457,104 @@ class LLMClient:
             **extra,
         )
 
+        msg = response.choices[0].message
+        content = msg.content or ''
+        thinking = ''
+
+        # 豆包的thinking内容可能在content中用<think>标签包裹
+        if content and '<think>' in content and '</think>' in content:
+            import re
+            think_match = re.search(r'<think>(.*?)</think>', content, re.DOTALL)
+            if think_match:
+                thinking = think_match.group(1).strip()
+                # 移除thinking部分，只保留实际回复
+                content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
+
+        # 备用：尝试从reasoning_content获取
+        if not thinking:
+            thinking = getattr(msg, 'reasoning_content', '') or ''
+
         return {
             'model': model_name,
-            'content': response.choices[0].message.content,
+            'content': content,
+            'thinking': thinking,
+            'input_tokens': response.usage.prompt_tokens,
+            'output_tokens': response.usage.completion_tokens,
+        }
+
+    def _call_qwen(self, system_prompt, user_prompt, model_name, temperature, thinking=False):
+        from openai import OpenAI
+        if 'qwen' not in self._clients:
+            api_key = os.getenv('DASHSCOPE_API_KEY')
+            if not api_key:
+                raise ValueError("缺少 DASHSCOPE_API_KEY 环境变量")
+            self._clients['qwen'] = OpenAI(
+                api_key=api_key,
+                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            )
+
+        client = self._clients['qwen']
+        model_id = self.PROVIDER_MODELS['qwen'].get(model_name, model_name)
+
+        extra = {}
+        if thinking:
+            extra['extra_body'] = {"enable_thinking": True}
+        else:
+            extra['extra_body'] = {"enable_thinking": False}
+
+        # thinking 模式必须用 stream，否则 Qwen API 会因生成时间过长返回 400 超时
+        if thinking:
+            stream = client.chat.completions.create(
+                model=model_id,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=temperature,
+                max_tokens=8192,
+                stream=True,
+                stream_options={"include_usage": True},
+                **extra,
+            )
+            content_parts = []
+            thinking_parts = []
+            input_tokens = 0
+            output_tokens = 0
+            for chunk in stream:
+                if chunk.usage:
+                    input_tokens = chunk.usage.prompt_tokens or 0
+                    output_tokens = chunk.usage.completion_tokens or 0
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta
+                if getattr(delta, 'reasoning_content', None):
+                    thinking_parts.append(delta.reasoning_content)
+                if delta.content:
+                    content_parts.append(delta.content)
+            return {
+                'model': model_name,
+                'content': ''.join(content_parts),
+                'thinking': ''.join(thinking_parts),
+                'input_tokens': input_tokens,
+                'output_tokens': output_tokens,
+            }
+
+        response = client.chat.completions.create(
+            model=model_id,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=temperature,
+            max_tokens=8192,
+            **extra,
+        )
+
+        msg = response.choices[0].message
+        return {
+            'model': model_name,
+            'content': msg.content or '',
+            'thinking': getattr(msg, 'reasoning_content', '') or '',
             'input_tokens': response.usage.prompt_tokens,
             'output_tokens': response.usage.completion_tokens,
         }
@@ -440,8 +579,8 @@ class LLMClient:
         extra = {}
         if thinking:
             # reasoning: 启用推理模式
-            # include_reasoning: false 只返回最终答案，不包含思考过程（避免污染XML输出）
-            extra['extra_body'] = {"reasoning": {"enabled": True}, "include_reasoning": False}
+            # include_reasoning: true 返回思考过程，通过 reasoning_content 字段获取
+            extra['extra_body'] = {"reasoning": {"enabled": True}, "include_reasoning": True}
 
         # 重试机制：429/连接错误 → 指数退避重试
         max_retries = 5
@@ -457,9 +596,38 @@ class LLMClient:
                     max_tokens=8192,
                     **extra,
                 )
+                msg = response.choices[0].message
+                content = msg.content or ''
+                extras = getattr(msg, 'model_extra', None) or {}
+
+                # 1) reasoning_content 属性（部分 SDK 版本直接暴露）
+                thinking = getattr(msg, 'reasoning_content', '') or ''
+
+                # 2) model_extra['reasoning']（Claude/GPT/Step 等通过此字段返回）
+                if not thinking:
+                    thinking = extras.get('reasoning', '') or ''
+
+                # 3) reasoning_details 结构化字段（更可靠的 fallback）
+                if not thinking:
+                    details = extras.get('reasoning_details') or []
+                    for d in details:
+                        text = (d.get('text') or d.get('summary') or '') if isinstance(d, dict) else ''
+                        if text:
+                            thinking = text
+                            break
+
+                # 4) <think> 标签混入 content（Qwen3 等模型）
+                if not thinking and content and '<think>' in content and '</think>' in content:
+                    import re
+                    think_match = re.search(r'<think>(.*?)</think>', content, re.DOTALL)
+                    if think_match:
+                        thinking = think_match.group(1).strip()
+                        content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
+
                 return {
                     'model': model_name,
-                    'content': response.choices[0].message.content,
+                    'content': content,
+                    'thinking': thinking,
                     'input_tokens': response.usage.prompt_tokens,
                     'output_tokens': response.usage.completion_tokens,
                 }
