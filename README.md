@@ -35,6 +35,17 @@
 
 > 沙盒通过资源枯竭、隐藏时钟和属性制作系统（配方基于物理属性组合而非名称），迫使模型在 50+ 步连续决策中展现规划、风险管理和归纳推理——而非静态题库里的单次问答。
 
+六个模型的实际思考内容，同一个游戏场景：
+
+| 模型 | 风格 | 思考原文摘录 |
+|------|:----:|------|
+| Claude Opus 4.6 | 简洁决策 | *"Critical situation: Life 2/100, Thirst 81. I need to address thirst immediately or I'll die. Wait — can I eat dried moss?"* |
+| Gemini 3.1-Pro | 戏剧叙事 | *"Damn, I'm on the brink here... brutally honest assessment: I'm losing health fast. Drink first, everything else is secondary."* |
+| Qwen3 Max | 穷举递归 | *"分析配方：刃部需要[坚硬,脆性]——钛合金碎片满足坚硬，但脆性？重新检查...聚合物板[柔韧,绝热]不满足。回溯..."* |
+| DeepSeek V3.2 | 自问自答 | *"等等，应该先探索还是先采集？但口渴值在上升...或许两者都有道理，但生存优先——还是先找水源？"* |
+| Step 3.5 Flash | 状态枚举 | *"当前状态逐项确认：生命值80✓ 饥饿值23✓ 口渴值25✓ 体温68⚠ 体力60✓。可用动作列举：①移动 ②采集 ③制作 ④休息 ⑤观察..."* |
+| Doubao v2.0-pro | 自我纠错 | *"体力只有10了对吧？不对，等下...首先现在应该先休息？不对不对，或者？哦不对，现在最重要的是..."* |
+
 **[→ 完整分析、思考内容解析、行为原型和跨版本对比见 REPORT.md](REPORT.md)**
 
 ---
