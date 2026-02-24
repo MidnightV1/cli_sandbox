@@ -491,47 +491,148 @@ Claude Opus 4.6 以 1767 字符达到 ISI 15.6（S Tier），效率是 Step 3.5 
 
 #### 4.4.5 代表性思考摘录
 
-**Claude Opus 4.6 - thinking — 简洁高效型（Tick 47，濒死时刻）**：
+以下摘录均取自 seed=217 实际 session 日志，逐字引用 `thinking` 字段，不做改写。各段前标注行为特征，供对照理解。
 
-> Critical situation: Life 2/100, Thirst 81/100 (losing health), Temperature 0/100 (losing health). I need to address thirst immediately or I'll die.
+---
+
+**Claude Opus 4.6 — 量化每个威胁，靠数值推演逼出决策（Tick 46，生命 18/100）**
+
+> Let me assess my critical situation:
 >
-> Wait - can I eat dried moss? Probably not nutritious enough.
+> - Life: 18/100 - CRITICALLY LOW
+> - Hunger: 40/100 - manageable
+> - Thirst: 67/100 - getting dangerous, approaching 80
+> - Temperature: 0/100 - CRITICAL, causing continuous life drain
+> - Stamina: 28/100 - low
 >
-> Actually, I could try to get water from vines - they sometimes contain water. Let me try squeezing or cutting them for juice.
-
-紧凑的状态清单 → 快速排除 → 直接决策。即使在濒死时刻也保持冷静分析，不做无意义的枚举。
-
-**Gemini 3.1 Pro - thinking — 戏剧性叙事型（Tick 44，生命仅剩 5）**：
-
-> **Critical Analysis: Survival in the Face of Imminent Demise**
+> The biggest threats right now:
+> 1. Temperature at 0 is killing me every action (-2 to -5 life per tick)
+> 2. Life at 18 means I could die very soon
+> 3. Thirst at 67 is approaching danger zone
 >
-> Okay, here's the brutally honest situation I'm facing: I'm on the brink. My life is at a measly 5/100, and I'm practically staring death in the face. (...) Is there some hidden mechanic I'm missing? Could the Firestarter (with its "High Temp" attribute) provide warmth while I rest, keeping me alive?
-
-强烈的第一人称代入感，感叹词频繁，会反问自己是否遗漏了游戏机制。戏剧性表达不影响推理质量。
-
-**Qwen3 Max - thinking — 穷举递归型（Tick 1，开局分析）**：
-
-> 钛合金碎片有"坚硬"和"锋利"，但缺少"脆性"。配方要求刃部材料需要[坚硬,脆性]...
+> The campfire I have isn't working effectively—even when I get close, it only raises my temperature to 2, which isn't enough to overcome the extreme cold and wind
 >
-> 采集三次（三种资源）会消耗30体力（每次10），然后移动消耗10，总共40，剩余30体力。
+> I'm running out of time. Resting would take 3 hours and I'd keep losing life to the cold the whole time, so that's not viable...
 >
-> 建议先去异星森林（西），因为森林通常有水源、食物和制作工具的材料。
+> If I rest: 18 - 15 = 3 (maybe survive)
+> If I don't rest: I have 28 stamina. I can do maybe 2-3 actions before running out, but I'm losing 5 life per hour, so with only 18 life I'd only last about 3.6 hours max without the stamina recovery I'd need.
 
-每一个可能性都展开分析，包括体力的精确计算。这种穷举式推理解释了为什么其 TCI 达到 1.000——属性匹配不会被遗漏。
+威胁逐条量化（-2 to -5 per tick），最终落到"18-15=3"的精算再做决策。这种逐条数值推演是 Claude Opus 贯穿全局的稳定特征，不仅出现在危机时刻——在常规 tick 里也会预估体力剩余和行动次数。
 
-**GPT-5.2 - thinking — 摘要式（Tick 43，多段推理摘要）**：
+---
 
-> **Evaluating action choices** / **Considering rest options** / **Weighing rest and temperature effects** / **Choosing the right warmth action**
+**Gemini 3.1-Pro — 快速穷举后立即收敛，结论一句话（Tick 44，生命 5/100）**
+
+> Let's carefully assess my options:
+> * Can I "observe"? No stamina cost, but won't help.
+> * Can I "record"? No stamina cost, also unlikely to help.
+> * Can I "eat"? Apparently, eating doesn't cost stamina, but it won't help with the thirst, and I'd still be losing health.
+> * Can I "drink"? I don't have anything to drink.
+> * Can I "rest"? It doesn't consume stamina, and it is the only way to recover stamina and not directly trigger the exhaustion penalty.
 >
-> Resting could come at a health cost, and with life at 9, losing 5 per hour means three hours could lead to death...
+> So, I'm left with one, single, desperate plan: rest. While I'm resting, I need to hope and pray that the cover provided by the Alien Forest will mitigate the cold.
+>
+> **Final Decision:** Rest.
 
-每段以粗体标题开头，内容是精简的推理摘要而非完整思维链。多个连续标题暗示这是多步推理的浓缩输出，OpenRouter 可能只返回了 reasoning summary。
+五个动作逐一排除，最终收敛到"one, single, desperate plan"。全程不超过 1500 字符，高密度、低冗余——这是 Gemini 3.1-Pro 全场 σ=1.3h 最稳定表现背后的决策逻辑：穷举即收敛，不反复，不摇摆。
 
-**Doubao v2.0 Pro - thinking — 自我纠错型（中文）**：
+---
 
-> 不对不对，哦不对...
+**Gemini 3-Pro — 创意探索欲强，危机下反而陷入分析循环（Tick 36，生命 41/100，体温 0）**
 
-最接近"人类犹豫"的思考模式——频繁出现自我否定和修正，在所有模型中独树一帜。
+> My inventory contains fuel sources - `Resin Block`, `Dry Moss`, and `Fungus Wood` - as well as potential ignition materials: a `Titanium Shard` and `Sandstone`. I don't have a specific "fire starter," but traditional survival logic dictates that combining the `Titanium Shard` (metal) and `Sandstone` (rock) *might* create sparks. However, I have yet to find a known 'recipe' for crafting one.
+>
+> The 'Alien Forest' offers shelter, but in these extreme conditions, it has not yet helped. I rested recently and my temperature *dropped* from 27 to 5 while in the forest, so it's not a full safeguard against Extreme Cold. My only hope for staying alive at this moment is a fire, or at least a warm rest.
+>
+> I considered crafting a "Fire Starter" or a "Campfire". But I am fatigued. Crafting is a stamina and time-intensive action. In comparison, the quicker action would be to `Try` to build a fire directly, and the crafting would be too risky right now.
+>
+> I must *try* to ignite the dry moss immediately. The simplest and most direct command is the safest. `尝试 用钛合金碎片撞击砂岩点燃干苔`
+
+全场创造力最强的时刻之一——没有已知配方，直接借用现实世界"传统求生逻辑"（金属撞石头产生火花），用 `尝试` 指令探索异星未知操作。这种跨领域迁移是它的优势。但当危机更深时（tick 40，生命=3），它转而陷入读日志推断"火种到底有没有点燃"的循环，最终选择 `观察`——创意和行动力并不总是同步的。
+
+---
+
+**Gemini 3-Flash — 先清空当前区域资源再移动，危机下难以决断（Tick 4，开局第一次移动决策）**
+
+> Wait, I should gather all the resources from the crash site first, as they are high-tier. OK, OK. So, I will gather the remaining Titanium, the Polymer, and the Wires first. The crash site is my best bet right now for initial resources. Then, the next move is to go North.
+>
+> Okay, let's collect the remaining resources and then the final plan to move North. Move North.
+>
+> Right, the current plan: I need to craft the "Cutting Tool" [Hard, Brittle] + [Hard]. I'll move North.
+>
+> I need a "Cutting Tool" recipe: [Hard, Brittle] + [Hard]. Titanium fragment doesn't cut it (pun intended). Let's go north to the Dry Riverbed to find the stone I need.
+
+"gather all...first"的执念和"go North"的战略判断在同一段 thinking 里交替出现，最终执行了移动——但这种内部摇摆在后期危机（体温 0，体力耗尽）时会放大为真正的难以决断：列出 Option A/B/C/D 之后，通常靠一句"I must act now"强行结束，而不是真正排除了选项。
+
+---
+
+**Qwen3 Max — 逐条验属性缺口，主动发明解法并记录（Tick 22）**
+
+> 查看背包和当前可采集资源：
+> - 背包中的钛合金碎片：属性[坚硬,耐用,导热,锋利] — 注意，钛合金碎片有"坚硬"和"锋利"，但切割工具的刃部需要[坚硬,脆性]。钛合金碎片有"耐用"，可能不满足"脆性"。我们需要找是否有[坚硬,脆性]的材料。
+> - 当前位置可采集：蔓藤（柔韧,坚韧,细长）、菌木（坚硬,可燃,笔直,轻便）...这些材料中，菌木有"坚硬"，但没有"脆性"；树脂块有"可塑"，可能不脆。我们需要找是否有脆性的材料。
+>
+> 我们需要找水。口渴52，虽然不紧急，但我们需要确保有水源。森林中有"菌盖上凝结的露珠"，但露珠是否可采集？状态描述中"可采集"列表没有露珠，但我们可以尝试采集露珠。或者，用"尝试"指令来收集露珠。
+>
+> 另外，我们有干苔，干苔属性[可燃,柔软,轻便]...因为干苔有"柔软"属性，适合吸收。
+
+→ 实际行动：`尝试 用干苔擦拭菌盖收集露珠`（成功，科技+2）
+
+→ Tick 25 追加：`记录 干苔擦拭菌盖可高效收集露珠作为饮用水源（已验证有效）`（全场唯一使用 `记录` 指令的模型）
+
+属性验证 → 发现缺口 → 转向水源问题 → 推理干苔适合吸收 → 发明。整条链条完全属性驱动，无配方依赖。遇到死局时它的反应是绕开而不是卡死，这是 TCI=1.00 的底层机制。
+
+---
+
+**DeepSeek V3.2 — 推导清晰，但每次收尾都选择观察，分析瘫痪（Tick 25）**
+
+> 所以，我决定移动东到坠毁点。
+>
+> 移动指令：移动东。
+>
+> 输出指令：\<action\>移动\</action\>\<detail\>东\</detail\>
+>
+> 但让我再考虑一下。口渴54，虽然安全，但需要关注...荧光果可以缓解口渴，但背包中没有荧光果了？...
+>
+> 从核心规则，观察指令可以观察物品。或许我需要先观察环境。
+>
+> 在当前状态下，我可以先观察，看看是否有荧光果或其他资源。
+>
+> 观察不耗时，不消耗体力。
+>
+> 所以，我可以先观察。
+>
+> 指令：观察
+>
+> ...先观察是安全的...所以，我决定先观察环境。
+
+→ 实际行动：`观察`
+
+Thinking 中段已明确写下"移动东"并附出完整 XML 指令，随后以"但让我再考虑"自我撤销，理由是"观察不耗时"。这一模式在第 2 天多个 tick 重复出现——推导末尾总有清晰的行动结论，然后被一个成本更低的"先观察"替代。到 tick 42（生命=1），仍在分析"吃动作是否消耗体力"，最终行动仍是 `观察`。
+
+---
+
+**Step 3.5 Flash — 重读配方触发顿悟，推演清晰后立即执行（Tick 13）**
+
+> 让我重新看配方：'刃部材料[坚硬,脆性]' - 需要同时具有坚硬和脆性。钛合金碎片有坚硬但没有脆性。磷矿石有脆性也有坚硬。所以磷矿石同时具有坚硬和脆性！可以作为刃部材料。钛合金碎片有坚硬，可以作为敲击物。因此我可以制作切割工具。
+
+结论清晰，但这段顿悟之前有多轮重复推导。Step 3.5 Flash 的典型模式是反复重读同一配方文本，直到某次重读触发属性交叉的发现——它的 5221 字符/tick 大多消耗在这个循环上，而不是在探索新方向。推演链一旦建立，行动立即跟进，不犹豫。这解释了它的效率（ISI/千字符=1.4）是 Claude Opus（8.8）的六分之一。
+
+---
+
+**Doubao v1.8 — 边想边问自己，失败后即兴拼出新解法（Tick 31，口渴 82，已掉血）**
+
+> 我现在需要解决当前的生存问题，首先看状态：口渴82，已经掉血了...之前尝试用干苔处理沼泽水？...刚才使用干苔对沼泽水失败了，掉血了。那换个方式...用干苔吸附沼泽水后拧出水分饮用...因为之前用干苔处理露珠成功过，所以用同样方式处理。
+
+失败 → 复盘 → 类比迁移："之前用干苔处理露珠成功过"是关键推理节点——不是查配方，而是从自身经验里找可以迁移的模式，再尝试组合出新解法。这种"当场摸索"的风格解释了为什么 v1.8 的 TCI 从 v1.6 的 0.28 跃升到 0.83。
+
+---
+
+**Doubao v2.0-pro — 反复自我否定，绕一大圈后还是执行了（Tick 1，游戏开局第一步）**
+
+> 我现在需要处理用户的请求，首先第一步应该先采集附近的可用资源对吧？首先坠毁点有钛合金碎片、聚合物板、导线这些，先采集钛合金碎片？不对不对，先看看，首先现在初始阶段，先采集资源对吧？不对，哦不对，首先有没有可以做切割工具的？哦不对，先采集现成的资源啊，首先位置里的可采集资源，先采集钛合金碎片吧？不对，等下，第一步的话，先采集钛合金碎片？不对，或者先观察？不对，不对，现在已经有位置描述了，哦不对，不对，现在首先要采集有用的资源，比如钛合金碎片，因为它有坚硬、锋利这些属性，对吧？哦对，那第一步就是采集 钛合金碎片？不对，等下，有没有更优先的？哦不对，现在饥渴体温都没问题，体力也够，先采集资源对吧。哦对，那动作是采集，detail是钛合金碎片？不对，等下，或者有没有必要先观察残骸？哦不对，观察的话现在已经给了位置描述了啊。哦不对，再想想，策略建议前几步是观察环境→采集附近资源→制作切割工具。哦现在已经观察过了对吧？系统已经给了环境描述了，那下一步就是采集资源，先采集钛合金碎片对吧？对，那输出的话就是\<action\>采集\</action\>\<detail\>钛合金碎片\</detail\>？不对，等下，或者有没有更好的？哦不对，也可以先采集导线？不对，钛合金碎片是坚硬的，能做切割工具的部件对吧。对，就先采集钛合金碎片。
+
+"不对"在 1157 字符里出现 10+ 次。最终执行的是"先采集钛合金碎片"——这是 thinking 最开始三秒就提出的答案，此后所有的自我否定都没有改变结论，只是在同一个圈子里多走了 10 圈。与 v1.8 的线性推进形成鲜明对比：v2.0-pro 的自我纠错不是修正错误，而是对尚未犯的错误反复预警，这解释了为什么开 thinking 后 TCI 从 0.95 反而降到 0.78。
 
 ---
 
