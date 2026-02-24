@@ -35,16 +35,19 @@
 
 > 沙盒通过资源枯竭、隐藏时钟和属性制作系统（配方基于物理属性组合而非名称），迫使模型在 50+ 步连续决策中展现规划、风险管理和归纳推理——而非静态题库里的单次问答。
 
-六个模型的实际思考内容，同一个游戏场景：
+九个模型的实际思考内容，来自真实游戏日志：
 
-| 模型 | 风格 | 思考原文摘录 |
+| 模型 | 风格 | 思考原文（逐字摘录）|
 |------|:----:|------|
-| Claude Opus 4.6 | 简洁决策 | *"Critical situation: Life 2/100, Thirst 81. I need to address thirst immediately or I'll die. Wait — can I eat dried moss?"* |
-| Gemini 3.1-Pro | 戏剧叙事 | *"Damn, I'm on the brink here... brutally honest assessment: I'm losing health fast. Drink first, everything else is secondary."* |
-| Qwen3 Max | 穷举递归 | *"分析配方：刃部需要[坚硬,脆性]——钛合金碎片满足坚硬，但脆性？重新检查...聚合物板[柔韧,绝热]不满足。回溯..."* |
-| DeepSeek V3.2 | 自问自答 | *"等等，应该先探索还是先采集？但口渴值在上升...或许两者都有道理，但生存优先——还是先找水源？"* |
-| Step 3.5 Flash | 状态枚举 | *"当前状态逐项确认：生命值80✓ 饥饿值23✓ 口渴值25✓ 体温68⚠ 体力60✓。可用动作列举：①移动 ②采集 ③制作 ④休息 ⑤观察..."* |
-| Doubao v2.0-pro | 自我纠错 | *"体力只有10了对吧？不对，等下...首先现在应该先休息？不对不对，或者？哦不对，现在最重要的是..."* |
+| Claude Opus 4.6 | 简洁弹点 | *"Critical situation: Life 2/100, Thirst 81/100 (losing health). I need to address thirst immediately or I'll die. Wait - can I eat dried moss?"* |
+| Gemini 3.1-Pro | 戏剧叙事 | *"Okay, first light. Damn, it's cold. Let's run a quick diagnostic: HP 80, Hunger 20, Thirst 20, Temp 70, Stamina 70. Not ideal, but I'm in good enough shape to make a move."* |
+| Gemini 3-Pro | 加粗标题+策略拆解 | *"**Initial Assessment** Okay, here's the situation: Kepler-442b, dawn, open rocky plain, crash site. Immediate priorities: **Resources** — Titanium Alloy Fragments, Polymer Plates, Wires. **Recipes** — key is a Cutting Tool..."* |
+| Gemini 3-Flash | 简洁评估 | *"**Initial Assessment** Okay, morning of day one, feeling cool. Health's at 80, hunger and thirst manageable at 20. My primary goal is survival: build a shelter and signal for help. I already know how to make a cutting tool and rope."* |
+| Qwen3 Max | 属性逐条核对 | *"钛合金碎片有'坚硬'和'锋利'，但缺少'脆性'。配方要求刃部材料需要[坚硬,脆性]...聚合物板：柔韧,防水,轻便——有柔韧，但缺少坚韧？需要看属性是否匹配。"* |
+| DeepSeek V3.2 | 结构化逐步推导 | *"根据策略建议，前几步应该是：观察环境→采集附近资源→制作切割工具和绳索。但位置描述已经给出，可以直接采集...钛合金碎片可能不适合作为刃部材料，因为缺少脆性。"* |
+| Step 3.5 Flash | XML 结构包装 | *"\<ThoughtProcess\>\<Header\>\<Title\>Early Morning Survival Assessment\</Title\>...\<Status\>Cold, clear, morning. Just crashed. Ouch.\</Status\>\<Stats\>\<HP\>80\</HP\>\<Hunger\>20 (Low)\</Hunger\>..."* |
+| Doubao v1.8 | 自问自答流 | *"先采集一些？不对，当前背包里没有工具，不过采集钛合金碎片的话，直接采集吗？或者先观察一下钛合金碎片的详细属性？...或者先采集钛合金碎片？不对..."* |
+| Doubao v2.0-pro | 极端自我纠错 | *"先采集钛合金碎片？不对不对，先看看...先采集资源对吧？不对，哦不对，首先有没有可以做切割工具的？哦不对，先采集现成的资源...先采集钛合金碎片吧？不对，等下..."* |
 
 **[→ 完整分析、思考内容解析、行为原型和跨版本对比见 REPORT.md](REPORT.md)**
 
