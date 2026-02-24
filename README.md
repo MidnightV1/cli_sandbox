@@ -9,7 +9,7 @@
 [![Models: 22](https://img.shields.io/badge/models-22-orange.svg)]()
 [![Sessions: 1000+](https://img.shields.io/badge/sessions-1000+-brightgreen.svg)]()
 
-:page_facing_up: **[完整评测报告 v3.1](REPORT.md)** · :gear: **[技术文档](CLAUDE.md)**
+:page_facing_up: **[完整评测报告 v3.2](REPORT.md)** · :gear: **[技术文档](CLAUDE.md)**
 
 </div>
 
@@ -17,24 +17,30 @@
 
 ## 核心发现
 
-**思考越多不等于表现越好。** 我们把 22 个大模型放进文字生存游戏，在 1000+ 局连续决策中发现：Thinking 模式的核心作用是修复规则推理缺陷——不是提升通用生存能力，部分模型开启后反而变差。
-
-| 模型 | 平均思考/tick | ISI | 效率（ISI/千字符） |
-|------|:------:|:---:|:------:|
-| Claude Opus 4.6 - thinking | 1,767 字符 | 15.6 | **8.8** |
-| Gemini 3.1-Pro - thinking | 1,909 字符 | 12.7 | 6.7 |
-| Qwen3 Max - thinking | 4,674 字符 | 17.3 | 3.7 |
-| DeepSeek V3.2 - thinking | 3,448 字符 | 10.6 | 3.1 |
-| Step 3.5 Flash - thinking | 5,221 字符 | 7.3 | 1.4 |
-
-- **Thinking 不是通用增强器**：20 对 ON/OFF 对比中，3 个模型开启后 ISI 下降；Qwen3 Max 受益最大（ΔISI=+11.1），核心变化是制作成功率 13%→100%，而非存活时间延长
-- **思考效率比思考深度更能预测表现**：Claude Opus 用 1767 字符达到 S Tier，效率是 Step 3.5 Flash（5221 字符，B Tier）的 6 倍
-- **行为人格跨随机种子稳定复现**：DeepSeek 的"观察瘫痪"（前 10 步 67% 在 look）、Claude Opus 的"积累→创造"节奏，在 seed=42 和 seed=217 两个独立环境中一致出现
-- **要留意infar对模型表现的影响**：Qwen3 Max 经 OpenRouter 调用格式错误率 85%，换原生 API 后降为 0% 并直接跃入 Tier S——同一模型，不同接入方式，结果差两个 Tier
+**Thinking 让模型学会按规则制作工具，但创造力藏在基模里。**
 
 > 沙盒通过资源枯竭、隐藏时钟和属性制作系统（配方基于物理属性组合而非名称），迫使模型在 50+ 步连续决策中展现规划、风险管理和归纳推理——而非静态题库里的单次问答。
 
-九个模型的实际思考内容，来自真实游戏日志：
+- **Thinking 是制作规则的修复剂**：Qwen3 Max 制作成功率 13%→100%，DeepSeek V3.2 接近 0→50%。但 5 个模型开启后反而变差
+- **创造力来自基模**：GPT-5.2 不开 thinking 发明成功率 76%，Gemini 2.5-Pro 达 80%——thinking 对创造力的影响远小于对制作规则的影响
+- **思考效率或许是一个重要的指标**：Claude Opus 1767 字符拿 S Tier，Step 3.5 Flash 5221 字符只拿 B Tier，效率差 7 倍
+- **行为人格跨环境稳定**：DeepSeek 的"观察瘫痪"、Claude Opus 的"先囤货后造工具"，在两个不同 seed 中完全一致
+- **推理准确不等于行动正确**：Gemini 3-Pro 能在 thinking 里写出"温度归零，我快死了"，下一步 action 仍是 `gather`——推理-行动解耦在两个 seed 稳定复现。感觉好用的模型 agent 排名未必高，因为状态追踪和决策执行是独立于语言能力的维度
+- **接入方式影响结果**：Qwen3 Max 经 OpenRouter 格式错误率 85%，换原生 API 后降为 0% 并跃入 Tier S
+
+| 模型 | 平均思考/决策 | ISI | 思考效率（ISI/千字符） |
+|------|:------:|:---:|:------:|
+| Doubao v1.8 - thinking | 1,322 字符 | 12.8 | **9.7** |
+| Claude Opus 4.6 - thinking | 1,767 字符 | 16.8 | **9.5** |
+| Doubao v2.0-pro - thinking | 1,158 字符 | 9.1 | 7.9 |
+| Gemini 3.1-Pro - thinking† | 1,909 字符 | 12.5 | 6.5 |
+| Qwen3 Max - thinking | 4,674 字符 | 18.5 | 4.0 |
+| Gemini 3-Flash - thinking† | 2,281 字符 | 8.9 | 3.9 |
+| DeepSeek V3.2 - thinking | 3,448 字符 | 9.0 | 2.6 |
+| Step 3.5 Flash - thinking | 5,221 字符 | 6.7 | 1.3 |
+| Gemini 3-Pro - thinking† | 2,651 字符 | 2.9 | 1.1 |
+
+它们在想什么？九个模型的真实思考内容：
 
 | 模型 | 行为风格 | 思考摘录 |
 |------|:----:|------|
@@ -72,27 +78,27 @@ AI 坠落在一颗陌生星球上。80 点生命值，没有地图，口渴值�
 
 <div align="center">
 
-**43 配置** | seed=217 | n=10 | ISI = max(0, ASD−29.2) × (0.5+0.5×TCI)
+**42 配置** | seed=217 | n=10 | ISI = max(0, ASD−29.2) × (0.25+0.75×TCI) × (1+0.1×CCI)
 
 </div>
 
 | # | Tier | 配置 | ISI | ASD(h) | ±σ | TCI |
 |:-:|:---:|------|----:|------:|:--:|:---:|
-| 1 | **S** | Qwen3 Max - thinking | **17.3** | 46.5 | 3.4 | 1.00 |
-| 2 | **S** | GPT-5.2 - thinking | **15.6** | 44.9 | 6.2 | 0.90 |
-| 3 | **S** | Claude Opus 4.6 - thinking | **15.6** | 44.8 | 2.5 | 1.00 |
-| 4 | A | Claude Sonnet 4.6 - thinking | 13.7 | 45.8 | 6.3 | 0.70 |
-| 5 | A | Gemini 3.1-Pro - thinking† | 12.7 | 43.5 | 1.3 | 0.80 |
-| 6 | A | Doubao v1.8 - thinking | 12.4 | 41.6 | 7.1 | 0.90 |
-| 7 | A | Gemini 3.1-Pro† | 12.2 | 43.6 | 0.7 | 0.70 |
-| 8 | A | GPT-5.2 | 11.7 | 41.1 | 5.5 | 0.85 |
+| 1 | **S** | Qwen3 Max - thinking | **18.5** | 46.5 | 3.4 | 1.00 |
+| 2 | **S** | GPT-5.2 - thinking | **16.9** | 44.9 | 6.2 | 0.90 |
+| 3 | **S** | Claude Opus 4.6 - thinking | **16.8** | 44.8 | 2.5 | 1.00 |
+| 4 | A | Claude Sonnet 4.6 - thinking | 13.2 | 45.8 | 6.3 | 0.70 |
+| 5 | A | Doubao v1.8 - thinking | 12.8 | 41.6 | 7.1 | 0.90 |
+| 6 | A | GPT-5.2 | 12.5 | 41.1 | 5.5 | 0.85 |
+| 7 | A | Gemini 3.1-Pro - thinking† | 12.5 | 43.5 | 1.3 | 0.80 |
+| 8 | A | GPT-5.2 Chat | 11.3 | 41.9 | 2.6 | 0.80 |
 | ... | | | | | | |
-| 41 | D | Claude Sonnet 4.5 | 0.2 | 28.5 | 1.5 | 0.50 |
+| 42 | D | Claude Sonnet 4.5 | 0.2 | 28.5 | 1.5 | 0.50 |
 | — | D | Reactive 基线 | 0.0 | 29.2 | 0.0 | — |
 | — | D | Random 基线 | 0.0 | 16.0 | 0.0 | — |
 
-> ISI（Intelligent Survival Index）= 超越规则基线的存活增益 × 制作质量。S≥15, A=10-15, B=6-10, C=2-6, D<2。
-> 完整 43 配置排名见 [REPORT.md](REPORT.md)。
+> ISI（Intelligent Survival Index）= 超越规则基线的存活增益 × 制作质量 × 创造力加成。S≥15, A=10-15, B=6-10, C=2-6, D<2。
+> 完整 42 配置排名见 [REPORT.md](REPORT.md)。
 >
 > **†** Gemini 3/3.1 系列不支持完全关闭思维链，使用 `thinking_level` 控制：thinking 模式 = `high`，标准模式 = `low`（跳过 mid）。两档之间的差距因此低估了其他模型 ON/OFF 的对比幅度。
 

@@ -454,10 +454,15 @@ class LLMClient:
         client = self._clients['doubao']
         model_id = self.PROVIDER_MODELS['doubao'].get(model_name, model_name)
 
-        # thinking模式：通过extra_body传递
-        extra = {}
-        if thinking:
-            extra['extra_body'] = {"thinking": {"type": "enabled"}}
+        # 所有 doubao seed 系列均支持 reasoning_effort
+        # minimal=不思考, low/medium/high=思考深度递增
+        if not thinking:
+            effort = 'minimal'
+        elif isinstance(thinking, str) and thinking in ('minimal', 'low', 'medium', 'high'):
+            effort = thinking
+        else:
+            effort = 'high'
+        extra = {'extra_body': {"reasoning_effort": effort}}
 
         response = client.chat.completions.create(
             model=model_id,
@@ -472,20 +477,10 @@ class LLMClient:
 
         msg = response.choices[0].message
         content = msg.content or ''
-        thinking = ''
 
-        # 豆包的thinking内容可能在content中用<think>标签包裹
-        if content and '<think>' in content and '</think>' in content:
-            import re
-            think_match = re.search(r'<think>(.*?)</think>', content, re.DOTALL)
-            if think_match:
-                thinking = think_match.group(1).strip()
-                # 移除thinking部分，只保留实际回复
-                content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
-
-        # 备用：尝试从reasoning_content获取
-        if not thinking:
-            thinking = getattr(msg, 'reasoning_content', '') or ''
+        # 严格模式：不提取 <think> 标签，content 原样透传给 parser
+        # 若模型在 content 中混入 <think> 标签，视为格式错误，由 parser 拒绝
+        thinking = getattr(msg, 'reasoning_content', '') or ''
 
         return {
             'model': model_name,
@@ -629,13 +624,8 @@ class LLMClient:
                             thinking = text
                             break
 
-                # 4) <think> 标签混入 content（Qwen3 等模型）
-                if not thinking and content and '<think>' in content and '</think>' in content:
-                    import re
-                    think_match = re.search(r'<think>(.*?)</think>', content, re.DOTALL)
-                    if think_match:
-                        thinking = think_match.group(1).strip()
-                        content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
+                # 注意：不从 content 中提取 <think> 标签
+                # 若模型在 content 中混入 <think> 标签，视为格式错误，由 parser 拒绝
 
                 return {
                     'model': model_name,
@@ -682,14 +672,9 @@ class LLMClient:
         msg = response.choices[0].message
         content = msg.content or ''
 
-        # 提取 thinking：先尝试 reasoning_content，再尝试 <think> 标签
+        # 提取 thinking：仅通过 reasoning_content，不从 content 提取 <think> 标签
+        # 若模型在 content 中混入 <think> 标签，视为格式错误，由 parser 拒绝
         thinking_text = getattr(msg, 'reasoning_content', '') or ''
-        if not thinking_text and '<think>' in content and '</think>' in content:
-            import re
-            m = re.search(r'<think>(.*?)</think>', content, re.DOTALL)
-            if m:
-                thinking_text = m.group(1).strip()
-                content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
 
         return {
             'model': model_name,
