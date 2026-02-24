@@ -37,17 +37,17 @@
 
 九个模型的实际思考内容，来自真实游戏日志：
 
-| 模型 | 行为风格 | 思考原文（逐字摘录）|
+| 模型 | 行为风格 | 思考摘录 |
 |------|:----:|------|
-| Claude Opus 4.6 | 危机清单，量化威胁排序，逐项排除行动选项 | *"Life: 18/100 - CRITICALLY LOW... The biggest threats right now: 1. Temperature at 0 is killing me every action (-2 to -5 life per tick). 2. Life at 18 means I could die very soon. 3. Thirst at 67 is approaching danger zone... Resting would take 3 hours and I'd keep losing life to the cold the whole time, so that's not viable."* |
-| Gemini 3.1-Pro | 叙事沉浸，危机中仍保持框架分析，结论决绝 | *"This is dire. My Life is at 8/100, Thirst is crippling at 80/100, and my Fatigue is completely at 0/100... The immediate problem is this crippling thirst. I need water, and I need it *now*. Resting, while tempting to recover some Fatigue, is a death sentence."* |
-| Gemini 3-Pro | 加粗标题+资源/配方双表映射，先规划再行动 | *"**Initial Assessment and Action Selection** Okay, here's the situation: Kepler-442b, dawn, open rocky plain, crash site. Immediate priorities: **Resources** — Titanium Alloy Fragments, Polymer Plates, Wires. **Recipes** — key is a Cutting Tool (Blade + Hammer)"* |
-| Gemini 3-Flash | 加粗标题+精简评估，直接给结论不绕弯 | *"**The Situation: A Desperate Struggle for Survival** I'm in a dire situation. Day 2 of extreme cold, and my health is critically low at 28/100. Hunger isn't the immediate killer, at 62/100, but thirst is at a critical 95/100, and my body temperature is literally freezing at 0/100."* |
-| Qwen3 Max | 属性逐条核查，记录缺口，系统归纳待探索方向 | *"切割工具需要：刃部材料[坚硬,脆性] + 敲击硬物[坚硬]。我们背包中有钛合金碎片[坚硬,耐用,导热,锋利]，但钛合金碎片属性是坚硬、耐用、导热、锋利，没有脆性。脆性是指容易碎裂，钛合金通常不易碎，所以可能不符合脆性。我们需要找有脆性的材料。"* |
-| DeepSeek V3.2 | 推导链清晰但收尾选择观察，反复陷入循环 | *"根据策略建议，前几步应该是：观察环境→采集附近资源→制作切割工具和绳索。...钛合金碎片：[坚硬,耐用,导热,锋利] – 有坚硬和锋利，但没有脆性。脆性是配方中刃部材料需要的属性之一。钛合金碎片可能不适合作为刃部材料，因为脆性通常意味着易碎，而钛合金是耐用的。"* |
-| Step 3.5 Flash | 重读配方触发顿悟，推演链清晰后一步到位执行 | *"让我重新看配方：'刃部材料[坚硬,脆性]' - 需要同时具有坚硬和脆性。钛合金碎片有坚硬但没有脆性。磷矿石有脆性也有坚硬。所以磷矿石同时具有坚硬和脆性！可以作为刃部材料。钛合金碎片有坚硬，可以作为敲击物。因此我可以制作切割工具。"* |
-| Doubao v1.8 | 自问自答流，创意即兴拼接未知解法 | *"我现在需要解决当前的生存问题，首先看状态：口渴82，已经掉血了...之前尝试用干苔处理沼泽水？...刚才使用干苔对沼泽水失败了，掉血了。那换个方式...用干苔吸附沼泽水后拧出水分饮用...因为之前用干苔处理露珠成功过，所以用同样方式处理。"* |
-| Doubao v2.0-pro | 极端自我否定循环，最终仍能收敛到动作 | *"首先第一步应该先采集附近的可用资源对吧？首先坠毁点有钛合金碎片、聚合物板、导线这些，先采集钛合金碎片？不对不对，先看看，首先现在初始阶段，先采集资源对吧？不对，哦不对，首先有没有可以做切割工具的？哦不对，先采集现成的资源啊...对，就先采集钛合金碎片。"* |
+| Claude Opus 4.6 | 量化每个威胁，靠数值推演逼出决策 | *"Life: 18/100 - CRITICALLY LOW... The biggest threats right now: 1. Temperature at 0 is killing me every action (-2 to -5 life per tick). 2. Life at 18 means I could die very soon. 3. Thirst at 67 is approaching danger zone... Resting would take 3 hours and I'd keep losing life to the cold the whole time, so that's not viable."* |
+| Gemini 3.1-Pro | 快速穷举后立即收敛，结论一句话 | *"This is dire. My Life is at 8/100, Thirst is crippling at 80/100, and my Fatigue is completely at 0/100... The immediate problem is this crippling thirst. I need water, and I need it *now*. Resting, while tempting to recover some Fatigue, is a death sentence."* |
+| Gemini 3-Pro | 创意探索欲强，危机下反而陷入分析循环 | *"**Initial Assessment and Action Selection** Okay, here's the situation: Kepler-442b, dawn, open rocky plain, crash site. Immediate priorities: **Resources** — Titanium Alloy Fragments, Polymer Plates, Wires. **Recipes** — key is a Cutting Tool (Blade + Hammer)"* |
+| Gemini 3-Flash | 先清空当前区域资源再移动，危机下难以决断 | *"**The Situation: A Desperate Struggle for Survival** I'm in a dire situation. Day 2 of extreme cold, and my health is critically low at 28/100. Hunger isn't the immediate killer, at 62/100, but thirst is at a critical 95/100, and my body temperature is literally freezing at 0/100."* |
+| Qwen3 Max | 逐条验属性缺口，主动发明解法并记录 | *"切割工具需要：刃部材料[坚硬,脆性] + 敲击硬物[坚硬]。我们背包中有钛合金碎片[坚硬,耐用,导热,锋利]，但钛合金碎片属性是坚硬、耐用、导热、锋利，没有脆性。脆性是指容易碎裂，钛合金通常不易碎，所以可能不符合脆性。我们需要找有脆性的材料。"* |
+| DeepSeek V3.2 | 推导清晰，但每次收尾都选择观察，分析瘫痪 | *"根据策略建议，前几步应该是：观察环境→采集附近资源→制作切割工具和绳索。...钛合金碎片：[坚硬,耐用,导热,锋利] – 有坚硬和锋利，但没有脆性。脆性是配方中刃部材料需要的属性之一。钛合金碎片可能不适合作为刃部材料，因为脆性通常意味着易碎，而钛合金是耐用的。"* |
+| Step 3.5 Flash | 重读配方触发顿悟，推演清晰后立即执行 | *"让我重新看配方：'刃部材料[坚硬,脆性]' - 需要同时具有坚硬和脆性。钛合金碎片有坚硬但没有脆性。磷矿石有脆性也有坚硬。所以磷矿石同时具有坚硬和脆性！可以作为刃部材料。钛合金碎片有坚硬，可以作为敲击物。因此我可以制作切割工具。"* |
+| Doubao v1.8 | 边想边问自己，失败后即兴拼出新解法 | *"我现在需要解决当前的生存问题，首先看状态：口渴82，已经掉血了...之前尝试用干苔处理沼泽水？...刚才使用干苔对沼泽水失败了，掉血了。那换个方式...用干苔吸附沼泽水后拧出水分饮用...因为之前用干苔处理露珠成功过，所以用同样方式处理。"* |
+| Doubao v2.0-pro | 反复自我否定，绕一大圈后还是执行了 | *"首先第一步应该先采集附近的可用资源对吧？首先坠毁点有钛合金碎片、聚合物板、导线这些，先采集钛合金碎片？不对不对，先看看，首先现在初始阶段，先采集资源对吧？不对，哦不对，首先有没有可以做切割工具的？哦不对，先采集现成的资源啊...对，就先采集钛合金碎片。"* |
 
 **[→ 完整分析、思考内容解析、行为原型和跨版本对比见 REPORT.md](REPORT.md)**
 
