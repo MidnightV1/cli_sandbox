@@ -112,9 +112,9 @@ AI 坠落在一颗陌生星球上。80 点生命值，没有地图，口渴值�
 | 2 | **S** | GPT-5.2 - thinking | **15.6** | 44.9 | 6.2 | 0.90 |
 | 3 | **S** | Claude Opus 4.6 - thinking | **15.6** | 44.8 | 2.5 | 1.00 |
 | 4 | A | Claude Sonnet 4.6 - thinking | 13.7 | 45.8 | 6.3 | 0.70 |
-| 5 | A | Gemini 3.1-Pro - thinking | 12.7 | 43.5 | 1.3 | 0.80 |
+| 5 | A | Gemini 3.1-Pro - thinking† | 12.7 | 43.5 | 1.3 | 0.80 |
 | 6 | A | Doubao v1.8 - thinking | 12.4 | 41.6 | 7.1 | 0.90 |
-| 7 | A | Gemini 3.1-Pro | 12.2 | 43.6 | 0.7 | 0.70 |
+| 7 | A | Gemini 3.1-Pro† | 12.2 | 43.6 | 0.7 | 0.70 |
 | 8 | A | GPT-5.2 | 11.7 | 41.1 | 5.5 | 0.85 |
 | ... | | | | | | |
 | 41 | D | Claude Sonnet 4.5 | 0.2 | 28.5 | 1.5 | 0.50 |
@@ -123,6 +123,8 @@ AI 坠落在一颗陌生星球上。80 点生命值，没有地图，口渴值�
 
 > ISI（Intelligent Survival Index）= 超越规则基线的存活增益 × 制作质量。S≥15, A=10-15, B=6-10, C=2-6, D<2。
 > 完整 43 配置排名见 [REPORT.md](REPORT.md)。
+>
+> **†** Gemini 3/3.1 系列不支持完全关闭思维链，使用 `thinking_level` 控制：thinking 模式 = `high`，标准模式 = `low`（跳过 mid）。两档之间的差距因此低估了其他模型 ON/OFF 的对比幅度。
 
 ---
 
@@ -143,16 +145,17 @@ python run_eval.py
 ```
 
 <details>
-<summary><b>支持的 Provider（7 家）</b></summary>
+<summary><b>支持的 Provider（8 家）</b></summary>
 
 | Provider | 模型示例 | 用法 |
 |----------|---------|------|
-| Gemini | 3-Pro, 3-Flash | `--agent gemini/3-Pro` |
+| Gemini | 3-Pro, 3-Flash, 3.1-Pro | `--agent gemini/3-Pro` |
 | OpenAI | gpt-5.2, gpt-5.2-chat | `--agent openai/gpt-5.2` |
 | Anthropic | claude-46-big, claude-45-mid | `--agent anthropic/claude-46-big` |
 | DeepSeek | v3 (V3.2) | `--agent deepseek/v3` |
-| Doubao | seed-1.8 | `--agent doubao/seed-1.8` |
+| Doubao | seed-1.8, seed-2.0-pro | `--agent doubao/seed-1.8` |
 | Moonshot | k2.5 (Kimi) | `--agent moonshot/k2.5` |
+| Longcat (美团) | flash-chat, flash-thinking | `--agent longcat/flash-thinking` |
 | OpenRouter | 任意模型 | `--agent openrouter/stepfun/step-3.5-flash:free` |
 
 </details>
@@ -186,7 +189,7 @@ cli_sandbox/
 ├── engine/              # 核心引擎（规则引擎、LLM 裁判、世界循环、评分）
 ├── agent/               # AI 自动玩家（状态序列化、决策）
 ├── interface/           # CLI 界面（Rich 渲染、中英文指令解析）
-├── llm/                 # 统一 LLM 客户端（7 Provider）+ 计费 + 限速重试
+├── llm/                 # 统一 LLM 客户端（8 Provider）+ 计费 + 限速重试
 ├── eval/                # 评估（会话录制 JSONL）
 ├── eval_results/        # 批量评测输出（gitignored）
 └── figures/             # 分析图表输出
